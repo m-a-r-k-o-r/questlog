@@ -218,6 +218,11 @@ open_url "https://supabase.com/dashboard/project/_/settings/api"
 step "Under Data API, copy the Project URL (https://….supabase.co)."
 ask SUPABASE_URL "Paste the Project URL:"
 SUPABASE_URL="${SUPABASE_URL%/}"
+# Accept a dashboard link too: turn .../project/<ref>/... into https://<ref>.supabase.co
+if [[ "$SUPABASE_URL" =~ supabase\.com/dashboard/project/([a-z0-9]+) ]]; then
+  SUPABASE_URL="https://${BASH_REMATCH[1]}.supabase.co"
+  note "That was a dashboard link; using your project's API address: $SUPABASE_URL"
+fi
 write_env SUPABASE_URL "$SUPABASE_URL"
 open_url "https://supabase.com/dashboard/project/_/settings/api-keys"
 step "Copy the Publishable key (starts sb_publishable_). If you only see Legacy keys, copy anon public."

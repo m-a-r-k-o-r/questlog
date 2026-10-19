@@ -1,0 +1,1363 @@
+<title>Questlog</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Pixelify+Sans:wght@400;500;600;700&display=swap">
+<style>
+:root{
+  /* Layout: a JRPG menu screen. A pinned status window (the HUD) sits over a tab strip, then stacked menu windows: two columns on wide screens, one on phones. */
+  --night:#0a0d26;
+  --night-glow:#1b2263;
+  --win-top:#2a3aa2;
+  --win-bot:#131b5e;
+  --win-flat:#18226f;
+  --deed-top:#5d2c86;
+  --deed-bot:#2a1556;
+  --frame:#e8ebff;
+  --frame-dark:#04061a;
+  --well:rgba(4,6,26,.42);
+  --ink:#f4f6ff;
+  --ink-dim:#c3c9f2;
+  --ink-faint:#8c95d6;
+  --gold:#ffd45c;
+  --gold-deep:#b9860f;
+  --gold-ink:#2b1d00;
+  --xp:#78f0c0;
+  --xp-deep:#1f9c74;
+  --xp-ink:#05352a;
+  --heart:#ff8ccb;
+  --heart-deep:#b8407f;
+  --heart-ink:#3d0a26;
+  --hp:#ff7070;
+  --hp-deep:#a82a3a;
+  --warn:#ffb25a;
+  --mana:#8fd0ff;
+  --violet:#c9aaff;
+  --star:rgba(232,235,255,.55);
+  --font-display:"Pixelify Sans", ui-monospace, "SF Mono", Menlo, monospace;
+  --font-body:"Atkinson Hyperlegible", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+html{background:var(--night)}
+body{
+  background-color:var(--night);
+  background-image:radial-gradient(1100px 520px at 50% -8%, var(--night-glow), transparent 72%);
+  background-repeat:no-repeat;
+  color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.5;min-height:100%;
+}
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.5;
+  background-image:
+    radial-gradient(1px 1px at 12% 18%, var(--star), transparent 60%),
+    radial-gradient(1px 1px at 72% 9%, var(--star), transparent 60%),
+    radial-gradient(1.5px 1.5px at 88% 34%, var(--star), transparent 60%),
+    radial-gradient(1px 1px at 33% 62%, var(--star), transparent 60%),
+    radial-gradient(1px 1px at 58% 81%, var(--star), transparent 60%),
+    radial-gradient(1.5px 1.5px at 6% 88%, var(--star), transparent 60%),
+    radial-gradient(1px 1px at 46% 30%, var(--star), transparent 60%);
+}
+*,*::before,*::after{box-sizing:border-box}
+.app{
+  position:relative;z-index:1;max-width:1060px;margin:0 auto;
+  padding-block:18px 48px;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));
+  padding-right:max(16px, env(safe-area-inset-right, 0px));
+  display:flex;flex-direction:column;gap:18px;
+}
+h1,h2,h3,h4{font-family:var(--font-display);font-weight:600;margin:0;text-wrap:balance;letter-spacing:.01em}
+p{margin:0}
+button{font:inherit;color:inherit}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+
+/* Menu windows */
+.win{
+  position:relative;min-width:0;
+  background:linear-gradient(180deg,var(--win-top),var(--win-bot));
+  border:3px solid var(--frame);border-radius:10px;
+  box-shadow:0 0 0 3px var(--frame-dark), 0 8px 0 3px rgba(0,0,0,.28);
+  padding:14px 16px 16px;
+}
+.win.deed{background:linear-gradient(180deg,var(--deed-top),var(--deed-bot))}
+.win-h{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;
+  font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-dim);margin:0 0 10px;
+}
+.hint{font-family:var(--font-body);text-transform:none;letter-spacing:0;font-size:13px;color:var(--ink-faint);font-weight:400}
+.stack{display:flex;flex-direction:column;gap:18px;min-width:0}
+.cols{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:780px){.cols{grid-template-columns:minmax(0,1fr)}}
+.empty{color:var(--ink-dim);font-size:14px}
+
+/* HUD */
+.hud{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px 28px;position:sticky;top:env(safe-area-inset-top, 0px);z-index:5}
+.hud-hero{display:flex;align-items:center;gap:14px;flex:1 1 320px;min-width:0}
+.lvl{
+  flex:none;width:64px;height:64px;display:grid;place-content:center;text-align:center;
+  border:3px solid var(--frame);border-radius:8px;background:var(--frame-dark);
+  font-family:var(--font-display);line-height:1;
+}
+.lvl span{font-size:11px;letter-spacing:.2em;color:var(--ink-faint)}
+.lvl b{font-size:28px;color:var(--gold);font-weight:600}
+.hud-id{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
+.hud-title{font-family:var(--font-display);font-size:20px}
+.hud-title small{font-size:13px;color:var(--ink-faint);margin-left:8px;font-weight:400}
+.hud-sub{font-size:12.5px;color:var(--ink-dim);font-variant-numeric:tabular-nums}
+.hud-stats{display:flex;flex-wrap:wrap;gap:8px 18px}
+.stat{display:flex;align-items:center;gap:6px;font-variant-numeric:tabular-nums}
+.stat b{font-family:var(--font-display);font-size:20px;font-weight:600}
+.stat small{color:var(--ink-dim);font-size:12.5px}
+.stat.bad b,.stat.bad small{color:var(--hp)}
+@media (max-width:520px){
+  .hud{position:relative;top:auto}
+  .lvl{width:54px;height:54px}.lvl b{font-size:24px}
+  .hud-title{font-size:18px}
+}
+
+/* Bars */
+.bar{display:block;height:12px;background:var(--frame-dark);border:2px solid var(--frame);border-radius:3px;overflow:hidden}
+.bar>i{display:block;height:100%;width:0;background:repeating-linear-gradient(90deg,var(--xp) 0 8px,var(--xp-deep) 8px 10px);transition:width .5s ease}
+.bar.gold>i{background:repeating-linear-gradient(90deg,var(--gold) 0 8px,var(--gold-deep) 8px 10px)}
+.bar.heart>i{background:repeating-linear-gradient(90deg,var(--heart) 0 8px,var(--heart-deep) 8px 10px)}
+.bar.mana>i{background:repeating-linear-gradient(90deg,var(--mana) 0 8px,var(--win-top) 8px 10px)}
+.bar.violet>i{background:repeating-linear-gradient(90deg,var(--violet) 0 8px,var(--win-top) 8px 10px)}
+.bar.warn>i{background:repeating-linear-gradient(90deg,var(--warn) 0 8px,var(--gold-deep) 8px 10px)}
+.bar.thin{height:8px;border-width:1.5px}
+
+/* Tabs */
+.tabs{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}
+@media (max-width:640px){.tabs{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.tab{
+  font-family:var(--font-display);font-size:15px;cursor:pointer;
+  background:var(--win-flat);border:2px solid var(--frame);border-radius:8px;
+  padding:8px 6px;color:var(--ink-dim);display:flex;align-items:center;justify-content:center;gap:6px;
+  box-shadow:0 0 0 2px var(--frame-dark);
+}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected="true"]{background:linear-gradient(180deg,var(--win-top),var(--win-bot));color:var(--gold)}
+.tab[aria-selected="true"]::before{content:"▶";font-size:11px;animation:bob 1s steps(2) infinite}
+.tab .dot{min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--hp);color:var(--frame-dark);font-size:11px;display:inline-grid;place-content:center;font-weight:700}
+.tab .dot.heart{background:var(--heart)}
+@keyframes bob{50%{transform:translateX(2px)}}
+
+/* Buttons and fields */
+.btn{
+  font-family:var(--font-display);font-size:14px;cursor:pointer;line-height:1.2;
+  background:var(--well);color:var(--ink);border:2px solid var(--frame);border-radius:7px;padding:7px 12px;
+  display:inline-flex;align-items:center;gap:6px;white-space:nowrap;
+}
+.btn:hover{background:rgba(232,235,255,.1)}
+.btn.primary{background:var(--gold);color:var(--gold-ink);border-color:var(--frame)}
+.btn.primary:hover{filter:brightness(1.06)}
+.btn.heart{background:var(--heart);color:var(--heart-ink)}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--ink-dim);padding-inline:6px}
+.btn.ghost:hover{color:var(--ink)}
+.btn.sm{font-size:12.5px;padding:4px 9px}
+.btn.danger{color:var(--hp);border-color:var(--hp)}
+.btn:disabled{opacity:.45;cursor:not-allowed;filter:none}
+input,select,textarea{
+  font:inherit;color:var(--ink);background:var(--well);border:2px solid var(--ink-faint);border-radius:6px;
+  padding:7px 9px;min-width:0;max-width:100%;
+}
+input::placeholder,textarea::placeholder{color:var(--ink-faint)}
+input:focus,select:focus,textarea:focus{border-color:var(--frame);outline:none}
+textarea{resize:vertical;min-height:64px;width:100%}
+select option{background:var(--win-bot);color:var(--ink)}
+.form{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.form>input[type=text],.form>.grow{flex:1 1 200px}
+.form label.f{display:flex;flex-direction:column;gap:3px;font-size:12.5px;color:var(--ink-dim)}
+.form label.f.grow input{width:100%}
+.form-col{display:flex;flex-direction:column;gap:8px}
+.btn-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+
+/* Checkboxes */
+input[type=checkbox].chk{
+  appearance:none;-webkit-appearance:none;margin:1px 0 0;flex:none;cursor:pointer;
+  width:22px;height:22px;border:2px solid var(--frame);border-radius:4px;background:var(--frame-dark);
+  display:inline-grid;place-content:center;padding:0;
+}
+input[type=checkbox].chk:checked{background:var(--xp)}
+input[type=checkbox].chk:checked::after{content:"";width:10px;height:6px;border-left:3px solid var(--xp-ink);border-bottom:3px solid var(--xp-ink);transform:translateY(-1px) rotate(-45deg)}
+input[type=checkbox].chk.sm{width:17px;height:17px;border-width:1.5px;margin-top:2px}
+input[type=checkbox].chk.sm:checked::after{width:7px;height:4px;border-width:2px}
+
+/* Chips and icons */
+.chip{
+  display:inline-flex;align-items:center;gap:4px;font-family:var(--font-display);font-size:12px;line-height:1.3;
+  padding:1px 8px;border:1.5px solid currentColor;border-radius:999px;white-space:nowrap;
+}
+.r-work{color:var(--mana)}.r-job{color:var(--violet)}.r-personal{color:var(--xp)}.r-other{color:var(--warn)}
+.chip.bad{color:var(--hp)}.chip.warn{color:var(--warn)}.chip.ok{color:var(--xp)}.chip.heart{color:var(--heart)}.chip.gold{color:var(--gold)}.chip.dim{color:var(--ink-faint)}
+.chip.sched{color:var(--ink-dim);border-style:dashed}
+.px{width:16px;height:16px;flex:none;display:inline-block;vertical-align:-3px}
+.px.lg{width:22px;height:22px}
+.xp{color:var(--xp);font-family:var(--font-display);font-size:13px}
+.gold-t{color:var(--gold);font-family:var(--font-display)}
+
+/* Rows */
+.rows{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.row{display:flex;gap:10px;align-items:flex-start;padding:8px 6px;border-radius:6px}
+.row:hover{background:rgba(232,235,255,.04)}
+.row .main{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.row .t{overflow-wrap:anywhere;cursor:pointer}
+.row.done .t{color:var(--ink-faint);text-decoration:line-through;text-decoration-color:var(--ink-faint)}
+.row .side{flex:none;display:flex;gap:6px;align-items:center}
+.meta{font-size:13px;color:var(--ink-dim);display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center}
+.q-ref{overflow-wrap:anywhere}
+.steps{list-style:none;margin:4px 0 0;padding:0 0 0 2px;display:flex;flex-direction:column;gap:4px}
+.steps li{display:flex;gap:8px;align-items:flex-start;font-size:14px;color:var(--ink-dim)}
+.steps label{cursor:pointer;overflow-wrap:anywhere}
+.steps input:checked+label{text-decoration:line-through;color:var(--ink-faint)}
+.edit-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13px;color:var(--ink-dim);margin-top:4px}
+.edit-row input[type=date]{padding:3px 6px;font-size:13px}
+.alert-ic{flex:none;margin-top:3px}
+.alert .t{cursor:default}
+.alert.bad .t{color:var(--hp)}
+.alert.warn .t{color:var(--warn)}
+
+/* Today */
+.dispatch{white-space:pre-line}
+.focus{margin:8px 0 0;padding-left:20px;color:var(--ink-dim)}
+.deed-cat{display:flex;align-items:center;gap:6px;font-family:var(--font-display);color:var(--heart);font-size:14px}
+.deed-text{font-size:18px;line-height:1.4;margin:6px 0 12px;max-width:46ch}
+.deed .form-col input{width:100%}
+.question{border:2px dashed var(--ink-faint);border-radius:6px;padding:8px 10px;margin-top:4px;display:flex;flex-direction:column;gap:6px}
+.question p{font-size:14px}
+.question p b{font-family:var(--font-display);font-weight:500;color:var(--gold)}
+
+/* Quests */
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip-btn{cursor:pointer;background:transparent;font-size:13px;padding:4px 11px;color:var(--ink-dim)}
+.chip-btn[aria-pressed="true"]{background:var(--frame);color:var(--frame-dark);border-color:var(--frame)}
+.quest{padding:0;overflow:hidden}
+.quest-head{
+  width:100%;text-align:left;cursor:pointer;background:transparent;border:0;padding:14px 16px;
+  display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 14px;align-items:center;
+}
+.quest-head:hover{background:rgba(232,235,255,.04)}
+.q-title{font-family:var(--font-display);font-size:19px;font-weight:600;overflow-wrap:anywhere;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.q-caret{font-size:12px;color:var(--ink-faint);transition:transform .2s}
+.quest-head[aria-expanded="true"] .q-caret{transform:rotate(90deg)}
+.q-reward{text-align:right;font-variant-numeric:tabular-nums;display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+.q-line{grid-column:1/-1;display:flex;align-items:center;gap:10px}
+.q-line .bar{flex:1}
+.q-count{font-family:var(--font-display);font-size:13px;color:var(--ink-dim);font-variant-numeric:tabular-nums}
+.stars{color:var(--gold);letter-spacing:1px;font-size:13px}
+.stars .off{color:var(--ink-faint)}
+.quest-body{border-top:2px solid rgba(232,235,255,.18);padding:12px 16px 16px;display:flex;flex-direction:column;gap:14px}
+.q-notes{color:var(--ink-dim);font-size:14px;max-width:70ch;white-space:pre-line}
+.chapter h4{font-size:14px;letter-spacing:.06em;color:var(--gold);display:flex;gap:8px;align-items:baseline;margin-bottom:4px}
+.chapter h4 small{font-family:var(--font-body);color:var(--ink-faint);font-weight:400;letter-spacing:0}
+.q-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center}
+.q-edit{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+.q-edit label{display:flex;flex-direction:column;gap:3px;font-size:12.5px;color:var(--ink-dim)}
+.q-edit .grow{flex:1 1 240px}
+.q-edit .grow input{width:100%}
+
+/* Allies */
+.ally-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:14px}
+.ally{display:flex;flex-direction:column;gap:8px}
+.ally-top{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.ally-name{font-family:var(--font-display);font-size:19px;overflow-wrap:anywhere}
+.ally-rel{color:var(--ink-dim);font-size:13.5px}
+.hearts{display:flex;gap:2px}
+
+/* Journal */
+.day-h{font-family:var(--font-display);font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin:12px 0 2px}
+.day-h:first-child{margin-top:0}
+.entry-kind{font-family:var(--font-display);font-size:13px;color:var(--heart)}
+
+/* Shop */
+.purse{display:flex;align-items:center;gap:10px;font-family:var(--font-display);font-size:30px;color:var(--gold)}
+.purse small{font-size:14px;color:var(--ink-dim)}
+.shop-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,210px),1fr));gap:12px}
+.ware{background:var(--well);border:2px solid var(--ink-faint);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px;justify-content:space-between}
+.ware.can{border-color:var(--gold)}
+.ware-t{font-weight:700;overflow-wrap:anywhere}
+.ware-c{display:flex;align-items:center;gap:6px;font-family:var(--font-display);color:var(--gold);font-size:18px}
+
+/* Hero */
+.sheet{display:grid;grid-template-columns:auto minmax(0,1fr);gap:18px;align-items:center}
+@media (max-width:520px){.sheet{grid-template-columns:minmax(0,1fr)}}
+.big-lvl{width:110px;height:110px;border:3px solid var(--frame);border-radius:10px;background:var(--frame-dark);display:grid;place-content:center;text-align:center;font-family:var(--font-display);line-height:1}
+.big-lvl span{font-size:13px;letter-spacing:.2em;color:var(--ink-faint)}
+.big-lvl b{font-size:50px;color:var(--gold);font-weight:600}
+.ledger{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.ledger div{background:var(--well);border-radius:6px;padding:8px 10px}
+.ledger dt{font-size:12px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.08em}
+.ledger dd{margin:0;font-family:var(--font-display);font-size:22px;font-variant-numeric:tabular-nums}
+.statline{display:grid;grid-template-columns:110px minmax(0,1fr) 60px;gap:10px;align-items:center;font-size:14px}
+.statline b{font-family:var(--font-display);font-weight:500;text-align:right;font-variant-numeric:tabular-nums}
+.badges{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,170px),1fr));gap:10px}
+.badge{border:2px solid var(--ink-faint);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:3px;opacity:.55}
+.badge.got{border-color:var(--gold);opacity:1;background:rgba(255,212,92,.08)}
+.badge b{font-family:var(--font-display);font-weight:600;color:var(--ink)}
+.badge.got b{color:var(--gold)}
+.badge span{font-size:13px;color:var(--ink-dim)}
+.rules{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;max-width:72ch}
+.rules b{font-family:var(--font-display);font-weight:500;color:var(--gold)}
+
+footer{color:var(--ink-faint);font-size:13px;text-align:center;max-width:70ch;margin:0 auto}
+
+/* Modal and effects */
+.backdrop{position:fixed;inset:0;z-index:40;background:rgba(2,3,15,.72);display:grid;place-items:center;
+  padding:max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px))}
+.modal{width:100%;max-width:600px;max-height:86vh;overflow:auto;display:flex;flex-direction:column;gap:12px}
+.modal h3{font-size:20px}
+.pv-ch{display:flex;flex-direction:column;gap:4px}
+.pv-ch h4{font-size:14px;color:var(--gold)}
+.pv-ch ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:3px}
+.pv-ch ul ul{color:var(--ink-dim);font-size:14px}
+#fx{position:fixed;inset:0;pointer-events:none;z-index:60}
+.float{position:absolute;top:calc(env(safe-area-inset-top, 0px) + 22px);right:max(28px, env(safe-area-inset-right, 0px));
+  font-family:var(--font-display);font-size:22px;color:var(--xp);text-shadow:0 2px 0 var(--frame-dark);animation:rise 1.3s ease-out forwards}
+.float.loss{color:var(--hp)}
+.toast{position:absolute;left:50%;bottom:calc(env(safe-area-inset-bottom, 0px) + 22px);transform:translateX(-50%);
+  max-width:min(520px, calc(100vw - 32px));padding:10px 16px;font-size:14px;animation:pop .25s ease-out}
+.toast.bad{color:var(--hp)}
+.banner{position:absolute;left:50%;top:calc(env(safe-area-inset-top, 0px) + 90px);transform:translateX(-50%);text-align:center;
+  padding:16px 28px;animation:pop .35s ease-out;max-width:calc(100vw - 32px)}
+.banner h3{font-size:28px;color:var(--gold)}
+.banner p{color:var(--ink-dim)}
+@keyframes rise{from{transform:translateY(0);opacity:1}to{transform:translateY(-52px);opacity:0}}
+@keyframes pop{from{transform:translateX(-50%) scale(.9);opacity:0}to{transform:translateX(-50%) scale(1);opacity:1}}
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation:none !important;transition:none !important}
+}
+</style>
+
+<div class="app">
+  <header class="win hud" id="hud"></header>
+  <nav class="tabs" id="tabs" role="tablist" aria-label="Sections"></nav>
+  <main id="main"></main>
+  <footer id="foot">Claude checks in every morning and evening and on Sunday evenings. It reads this page, adds quests, and leaves notes here.</footer>
+</div>
+<div id="modal"></div>
+<div id="fx"></div>
+
+<script>
+"use strict";
+
+/* ---------- Game rules ---------- */
+const REALMS = {
+  work:     {label:"Work"},
+  job:      {label:"Job search"},
+  personal: {label:"Personal"},
+  other:    {label:"Other"},
+};
+const DEEDS = {
+  reach:     {cat:"Connection",     label:"Reached out",    xp:25},
+  gratitude: {cat:"Gratitude",      label:"Gratitude",      xp:10},
+  kindness:  {cat:"Kindness",       label:"Kindness",       xp:20},
+  help:      {cat:"Help someone",   label:"Helped someone", xp:25},
+  gift:      {cat:"Give a gift",    label:"Gave a gift",    xp:30},
+  savor:     {cat:"Savor life",     label:"Savored life",   xp:15},
+};
+const FADING_BONUS = 15;
+const OBJ_DRAIN = {rate:5, cap:50};
+const QUEST_DRAIN = {rate:10, cap:100};
+const TITLES = [[1,"Wanderer"],[3,"Apprentice"],[5,"Squire"],[8,"Adventurer"],[12,"Knight"],[16,"Champion"],[20,"Hero"],[25,"Legend"],[30,"Mythic"]];
+const HOW = {text:["Texted","reach"], call:["Called","reach"], visit:["Spent time with","reach"], gift:["Gave a gift to","gift"], help:["Helped","help"]};
+const SIDE_QUESTS = [
+  {kind:"reach", text:"Text a friend you haven't talked to in a while. No agenda, just hi."},
+  {kind:"reach", text:"Call a family member for no particular reason."},
+  {kind:"reach", text:"Send a voice message to someone you miss."},
+  {kind:"reach", text:"Make plans to see someone in person this week."},
+  {kind:"gratitude", text:"Write down three things that went right today."},
+  {kind:"gratitude", text:"Thank someone for something specific they did this week."},
+  {kind:"gratitude", text:"Tell a coworker what you appreciate about working with them."},
+  {kind:"gratitude", text:"Send a short thank-you note to a teacher or mentor who shaped you."},
+  {kind:"kindness", text:"Give someone a genuine, specific compliment."},
+  {kind:"kindness", text:"Write a positive note home about a student who's been trying hard."},
+  {kind:"kindness", text:"Really listen to someone today. Phone away, full attention."},
+  {kind:"kindness", text:"Let someone go ahead of you, hold a door, or pick up litter. A small one counts."},
+  {kind:"kindness", text:"Leave a kind review or shout-out for a small business you like."},
+  {kind:"help", text:"Offer to help someone with something they're stuck on."},
+  {kind:"help", text:"Share a useful article, tool or contact with someone who'd benefit."},
+  {kind:"help", text:"Do a chore someone else usually does, without being asked."},
+  {kind:"help", text:"Introduce two people who should know each other."},
+  {kind:"gift", text:"Pick up a small treat for someone: a coffee, a snack, a flower."},
+  {kind:"gift", text:"Send someone a song, book or video that made you think of them."},
+  {kind:"gift", text:"Plan a small surprise for someone you love."},
+  {kind:"savor", text:"Step outside for 10 minutes and notice three beautiful things."},
+  {kind:"savor", text:"Eat one meal today slowly, with no screens."},
+  {kind:"savor", text:"Catch the sunset, or the sunrise if you're up early."},
+  {kind:"savor", text:"Spend 20 minutes on something purely for fun."},
+  {kind:"savor", text:"Play a song you love and actually listen to the whole thing."},
+  {kind:"savor", text:"Take a walk with no destination and no podcast."},
+];
+const REFLECTIONS = [
+  "What went well today, even something small?",
+  "Who made your day better today? Tell them, or write it here.",
+  "What's one moment from today you want to remember?",
+  "What did you do today that past-you would be proud of?",
+  "Who are you grateful for this week, and why?",
+  "What made you laugh today?",
+  "What's something ordinary that you'd miss if it were gone?",
+];
+const BADGES = [
+  {name:"First Step",     desc:"Complete your first objective",        test:e=>e.objDone>=1},
+  {name:"Questor",        desc:"Finish a whole quest",                 test:e=>e.questsDone>=1},
+  {name:"Quest Master",   desc:"Finish 10 quests",                     test:e=>e.questsDone>=10},
+  {name:"Kindled",        desc:"Reach a 7-day streak",                 test:e=>e.best>=7},
+  {name:"Eternal Flame",  desc:"Reach a 30-day streak",                test:e=>e.best>=30},
+  {name:"Warm Heart",     desc:"Log 10 good deeds",                    test:e=>e.deeds>=10},
+  {name:"Big Heart",      desc:"Log 100 good deeds",                   test:e=>e.deeds>=100},
+  {name:"Grateful",       desc:"Write 30 gratitude entries",           test:e=>(e.kinds.gratitude||0)>=30},
+  {name:"Loyal Friend",   desc:"Reach out to 5 different allies",      test:e=>e.alliesReached>=5},
+  {name:"Generous",       desc:"Give 5 gifts",                         test:e=>(e.kinds.gift||0)>=5},
+  {name:"Helping Hand",   desc:"Help someone 10 times",                test:e=>(e.kinds.help||0)>=10},
+  {name:"Well Earned",    desc:"Claim your first reward",              test:e=>e.purchases>=1},
+  {name:"Knighted",       desc:"Reach level 12",                       test:e=>e.level>=12},
+  {name:"Legendary",      desc:"Reach level 25",                       test:e=>e.level>=25},
+];
+
+/* ---------- Pixel icons ---------- */
+function pix(rows, pal){
+  let r = "";
+  rows.forEach((row, y) => { for (let x = 0; x < row.length; x++) { const c = pal[row[x]]; if (c) r += `<rect x="${x}" y="${y}" width="1" height="1" style="fill:var(${c})"/>`; } });
+  return `<svg class="px" viewBox="0 0 ${rows[0].length} ${rows.length}" aria-hidden="true" shape-rendering="crispEdges">${r}</svg>`;
+}
+const ICON = {
+  coin:  pix(["..gggg..",".gGGGGg.","gGGgGGGg","gGGgGGGg","gGGgGGGg","gGGgGGGg",".gGGGGg.","..gggg.."], {g:"--gold-deep",G:"--gold"}),
+  heart: pix([".hh..hh.","hHHhhHHh","hHHHHHHh","hHHHHHHh",".hHHHHh.","..hHHh..","...hh...","........"], {h:"--heart-deep",H:"--heart"}),
+  heart0:pix([".ff..ff.","f..ff..f","f......f","f......f",".f....f.","..f..f..","...ff...","........"], {f:"--ink-faint"}),
+  flame: pix(["...o....","...oo...","..ooo.o.",".oooyoo.",".ooyyoo.","ooyyyyoo","oyyWWyyo",".oyyyyo."], {o:"--warn",y:"--gold",W:"--ink"}),
+  gem:   pix(["...xx...","..xXXx..",".xXXXXx.","xXXXXXXx","xXXXXXXx",".xXXXXx.","..xXXx..","...xx..."], {x:"--xp-deep",X:"--xp"}),
+  drop:  pix(["...r....","...r....","..rRr...","..rRr...",".rRRRr..",".rRRRr..",".rRRRr..","..rrr..."], {r:"--hp-deep",R:"--hp"}),
+  warn:  pix(["...oo...","...oo...","..oWWo..","..oWWo..",".ooWWoo.",".oooooo.","ooooWooo","oooooooo"], {o:"--warn",W:"--frame-dark"}),
+  cal:   pix(["w.w..w.w","wwwwwwww","w......w","w.ww.w.w","w......w","w.w.ww.w","w......w","wwwwwwww"], {w:"--ink-dim"}),
+  cake:  pix(["...g....","...w....","..wwww..",".hhhhhh.",".wwwwww.",".hhhhhh.",".wwwwww.","gggggggg"], {g:"--gold",w:"--ink",h:"--heart"}),
+};
+
+/* ---------- State ---------- */
+const COLLS = ["quests","chronicle","allies","rewards","purchases","inbox","meta"];
+const S = {
+  quests:[], chronicle:[], allies:[], rewards:[], purchases:[], inbox:[], meta:{},
+  loaded:new Set(), failed:false, offline:false,
+  tab:"today", realm:"all", open:{}, edit:{}, deedShift:0, deedOpen:false, drafts:{}, busy:{},
+  preview:null, confirm:null, reachFor:null, newQuest:false, journalLimit:40,
+  prevXp:null, prevLevel:null,
+};
+let db = null, sample = null, raf = 0;
+const writes = {};
+const $ = id => document.getElementById(id);
+
+/* ---------- Helpers ---------- */
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt = n => Math.round(n).toLocaleString();
+const pad = n => String(n).padStart(2, "0");
+const ymd = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const today = () => ymd(new Date());
+const isYmd = s => /^\d{4}-\d{2}-\d{2}$/.test(String(s || ""));
+const toDate = s => { const [y,m,d] = String(s).slice(0,10).split("-").map(Number); return new Date(y, m-1, d); };
+const localDay = iso => { if (!iso) return null; const d = new Date(iso); return isNaN(d) ? null : ymd(d); };
+const diffDays = (a, b) => Math.round((toDate(b) - toDate(a)) / 864e5);
+const nowIso = () => new Date().toISOString();
+const rid = () => Math.random().toString(36).slice(2, 10);
+const hash = s => { let h = 0; for (const c of String(s)) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; };
+function clampInt(v, lo, hi, dflt){ const n = Math.round(Number(v)); return Number.isFinite(n) && n > 0 ? Math.min(hi, Math.max(lo, n)) : dflt; }
+function plural(n, w){ return `${n} ${w}${n === 1 ? "" : "s"}`; }
+function fmtDue(due){
+  const d = diffDays(today(), due);
+  if (d === 0) return "today"; if (d === 1) return "tomorrow"; if (d === -1) return "yesterday";
+  if (d < 0) return `${-d} days ago`;
+  if (d < 7) return toDate(due).toLocaleDateString(undefined, {weekday:"long"});
+  return toDate(due).toLocaleDateString(undefined, {month:"short", day:"numeric"});
+}
+function fmtDay(day){
+  const d = diffDays(day, today());
+  if (d === 0) return "Today"; if (d === 1) return "Yesterday";
+  return toDate(day).toLocaleDateString(undefined, {weekday:"long", month:"short", day:"numeric"});
+}
+function fmtWhen(iso){ const d = new Date(iso); return isNaN(d) ? "" : d.toLocaleString(undefined, {weekday:"short", hour:"numeric", minute:"2-digit"}); }
+function fmtMin(m){ m = Number(m); if (!m) return ""; return m < 60 ? `${m} min` : `${+(m/60).toFixed(1)} hr`; }
+function cadence(n){ return n === 1 ? "every day" : n === 7 ? "every week" : n === 14 ? "every 2 weeks" : n === 30 ? "every month" : `every ${n} days`; }
+const realmOf = q => REALMS[q.realm] ? q.realm : "other";
+const isActive = q => !q.status || q.status === "active";
+const activeQuests = () => S.quests.filter(isActive);
+function* eachObj(q){ for (const [ci, ch] of (q.chapters || []).entries()) for (const [oi, o] of (ch.objectives || []).entries()) yield {ch, o, ci, oi}; }
+function progress(q){ let n = 0, d = 0; for (const {o} of eachObj(q)) { n++; if (o.done) d++; } return {n, d}; }
+function findObj(q, oid){ for (const x of eachObj(q)) if (x.o.id === oid) return x.o; return null; }
+function normQuest(q){
+  const chapters = Array.isArray(q.chapters) ? q.chapters.map((c, ci) => ({
+    ...c, title: c.title || `Chapter ${ci + 1}`,
+    objectives: Array.isArray(c.objectives) ? c.objectives.map((o, oi) => ({
+      ...o, id: o.id || `i${ci}-${oi}`,
+      steps: Array.isArray(o.steps) ? o.steps.map(s => typeof s === "string" ? {t:s, done:false} : {...s}) : [],
+    })) : [],
+  })) : [];
+  return {...q, chapters};
+}
+
+/* ---------- Economy ---------- */
+const objXp = o => clampInt(o.xp, 1, 200, 10);
+const questBonus = q => clampInt(q.bonus, 1, 500, 25 + 25 * clampInt(q.priority, 1, 3, 1));
+const goldOf = x => Math.floor(x / 2);
+const deedXp = c => clampInt(c.xp, 1, 200, DEEDS[c.kind]?.xp ?? 10);
+function drainFor(item, endDay, rule){
+  const banked = Number(item.drainBanked) || 0;
+  if (!isYmd(item.due)) return banked;
+  const days = Math.max(0, diffDays(item.due, endDay || today()));
+  return banked + Math.min(rule.cap, days * rule.rate);
+}
+function liveDrain(due, rule){
+  if (!isYmd(due)) return 0;
+  const days = diffDays(due, today());
+  return days > 0 && days * rule.rate < rule.cap ? rule.rate : 0;
+}
+const xpFor = L => 50 * L * (L - 1);
+function levelOf(xp){ let L = 1; while (xpFor(L + 1) <= xp && L < 999) L++; return L; }
+const titleOf = L => TITLES.filter(([l]) => L >= l).pop()[1];
+function nextTitle(L){ const t = TITLES.find(([l]) => l > L); return t ? {level:t[0], name:t[1]} : null; }
+function bestStreak(days){ let best = 0, run = 0, prev = null; for (const d of [...days].sort()) { run = prev && diffDays(prev, d) === 1 ? run + 1 : 1; best = Math.max(best, run); prev = d; } return best; }
+function streakOf(days){ const d = new Date(); if (!days.has(ymd(d))) d.setDate(d.getDate() - 1); let n = 0; while (days.has(ymd(d))) { n++; d.setDate(d.getDate() - 1); } return n; }
+
+function economy(){
+  let earned = 0, drained = 0, goldIn = 0, drainRate = 0, objDone = 0, questsDone = 0;
+  const stats = {work:0, job:0, personal:0, other:0, heart:0};
+  const days = new Set(), kinds = {}, reached = new Set();
+  for (const q of S.quests) {
+    const realm = realmOf(q);
+    const qEnd = q.status === "done" ? (localDay(q.doneAt) || q.due || today()) : q.status === "archived" ? (localDay(q.archivedAt) || today()) : null;
+    for (const {o} of eachObj(q)) {
+      if (o.done) {
+        const x = objXp(o); earned += x; goldIn += goldOf(x); stats[realm] += x; objDone++;
+        const day = localDay(o.doneAt); if (day) days.add(day);
+        drained += drainFor(o, localDay(o.doneAt) || o.due, OBJ_DRAIN);
+      } else {
+        drained += drainFor(o, qEnd, OBJ_DRAIN);
+        if (isActive(q)) drainRate += liveDrain(o.due, OBJ_DRAIN);
+      }
+    }
+    if (q.status === "done") { const b = questBonus(q); earned += b; goldIn += goldOf(b); stats[realm] += b; questsDone++; }
+    drained += drainFor(q, qEnd, QUEST_DRAIN);
+    if (isActive(q)) drainRate += liveDrain(q.due, QUEST_DRAIN);
+  }
+  for (const c of S.chronicle) {
+    const x = deedXp(c); earned += x; goldIn += goldOf(x); stats.heart += x;
+    kinds[c.kind] = (kinds[c.kind] || 0) + 1;
+    if (c.allyId && (c.kind === "reach" || c.kind === "gift" || c.kind === "help")) reached.add(c.allyId);
+    const day = isYmd(c.date) ? c.date : localDay(c.at); if (day) days.add(day);
+  }
+  const spent = S.purchases.reduce((s, p) => s + (Number(p.cost) || 0), 0);
+  const xp = Math.max(0, earned - drained);
+  const level = levelOf(xp);
+  const e = {earned, drained, xp, level, goldIn, spent, gold: goldIn - spent, drainRate, stats, days, kinds,
+    streak: streakOf(days), best: bestStreak(days), objDone, questsDone, deeds: S.chronicle.length,
+    alliesReached: reached.size, purchases: S.purchases.length};
+  e.badges = BADGES.map(b => ({...b, got: !!b.test(e)}));
+  return e;
+}
+
+/* ---------- Derived lists ---------- */
+function dueSort(a, b){
+  const t = today();
+  const da = a ? diffDays(t, a) : 9999, dbb = b ? diffDays(t, b) : 9999;
+  return da - dbb;
+}
+function nextUp(){
+  const t = today(), list = [];
+  for (const q of activeQuests()) {
+    const pending = [...eachObj(q)].filter(x => !x.o.done);
+    pending.forEach((x, i) => {
+      const urgent = isYmd(x.o.due) && diffDays(t, x.o.due) <= 3;
+      if (i === 0 || urgent) list.push({q, o:x.o, due: x.o.due || q.due || null});
+    });
+  }
+  return list.sort((a, b) => dueSort(a.due, b.due) || clampInt(b.q.priority,1,3,1) - clampInt(a.q.priority,1,3,1));
+}
+function alerts(){
+  const t = today(), out = [];
+  const push = (due, title, kind, rule, extra) => {
+    const d = diffDays(t, due);
+    if (d < 0) {
+      const lost = Math.min(rule.cap, -d * rule.rate);
+      const capped = lost >= rule.cap;
+      out.push({sev:"bad", rank:0, title, sub:`${kind} ${plural(-d, "day")} overdue · ${capped ? `drain maxed at −${rule.cap} XP` : `−${lost} XP so far, draining ${rule.rate}/day`}`, ...extra});
+    } else if (d <= 3) {
+      out.push({sev: d <= 1 ? "warn" : "soon", rank: d <= 1 ? 1 : 2, title, sub:`${kind} due ${fmtDue(due)}`, ...extra});
+    }
+  };
+  for (const q of activeQuests()) {
+    if (isYmd(q.due)) push(q.due, q.title, "Quest", QUEST_DRAIN, {q:q.id});
+    for (const {o} of eachObj(q)) if (!o.done && isYmd(o.due)) push(o.due, o.title, "Objective", OBJ_DRAIN, {q:q.id, quest:q.title});
+  }
+  return out.sort((a, b) => a.rank - b.rank);
+}
+function allyState(a){
+  const every = clampInt(a.every, 1, 365, 14);
+  const since = isYmd(a.last) ? Math.max(0, diffDays(a.last, today())) : null;
+  const ratio = since == null ? 1 : since / every;
+  const status = since == null ? "new" : ratio >= 1 ? "fading" : ratio >= .75 ? "soon" : "close";
+  const bond = since == null ? .4 : Math.max(0, Math.min(1, 1 - since / (every * 2)));
+  return {every, since, status, bond, ratio};
+}
+function nextBirthday(a){
+  if (!isYmd(a.birthday)) return null;
+  const t = toDate(today()), b = toDate(a.birthday);
+  let n = new Date(t.getFullYear(), b.getMonth(), b.getDate());
+  if (n < t) n = new Date(t.getFullYear() + 1, b.getMonth(), b.getDate());
+  return {date: ymd(n), inDays: diffDays(today(), ymd(n))};
+}
+function fadingAllies(){
+  return S.allies.map(a => ({a, s: allyState(a)})).filter(x => x.s.status === "fading" || x.s.status === "soon")
+    .sort((x, y) => y.s.ratio - x.s.ratio);
+}
+function sideQuest(){
+  const t = today(), opts = [];
+  const m = S.meta.today;
+  if (m && m.date === t && m.deed && m.deed.text) opts.push({kind: DEEDS[m.deed.kind] ? m.deed.kind : "kindness", text: m.deed.text, allyId: m.deed.allyId || null, from:"Claude"});
+  for (const {a, s} of fadingAllies().filter(x => x.s.status === "fading").slice(0, 3))
+    opts.push({kind:"reach", text:`Reach out to ${a.name}. It's been ${plural(s.since, "day")}.`, allyId:a.id});
+  const seed = hash(t);
+  for (let i = 0; i < SIDE_QUESTS.length; i++) opts.push(SIDE_QUESTS[(seed + i) % SIDE_QUESTS.length]);
+  return opts[S.deedShift % opts.length];
+}
+function sideQuestXp(sq){
+  let x = DEEDS[sq.kind]?.xp ?? 10;
+  if (sq.allyId) { const a = S.allies.find(z => z.id === sq.allyId); if (a && allyState(a).status === "fading") x += FADING_BONUS; }
+  return x;
+}
+
+/* ---------- Writes ---------- */
+function errText(e){
+  const c = e && e.code;
+  if (c === "quota_exceeded") return "Storage is full. Delete some old quests or journal entries.";
+  if (c === "invalid_argument") return "That change couldn't be saved. You may only have view access to this page.";
+  if (c === "revoked") return "Access to this page changed. Reload to continue.";
+  return "Couldn't save that change. Check your connection and try again.";
+}
+function needDb(){ if (db) return true; toast("Open Questlog inside Claude to save changes.", "bad"); return false; }
+function queueWrite(path, fn){
+  const p = (writes[path] || Promise.resolve()).catch(() => {}).then(fn);
+  writes[path] = p;
+  p.catch(e => { console.error(path, e); toast(errText(e), "bad"); });
+  return p;
+}
+function addDoc(coll, body){
+  if (!needDb()) return Promise.reject();
+  const p = db.collection(coll).add(body);
+  p.catch(e => { console.error(coll, e); toast(errText(e), "bad"); });
+  return p;
+}
+function updateDoc(path, body){ if (!needDb()) return; return queueWrite(path, () => db.doc(path).update(body)); }
+function deleteDoc(path){ if (!needDb()) return; return queueWrite(path, () => db.doc(path).delete()); }
+// Mutators must be idempotent: they run once optimistically and again on the freshest copy at write time.
+function mutateQuest(id, mutator){
+  if (!needDb()) return;
+  const apply = () => { const cur = S.quests.find(q => q.id === id); if (!cur) return null; const q = structuredClone(cur); mutator(q); return q; };
+  const local = apply(); if (!local) return;
+  S.quests = S.quests.map(q => q.id === id ? local : q); render();
+  return queueWrite("quests/" + id, () => { const q = apply() || local; const {id:_drop, ...body} = q; return db.doc("quests/" + id).set(body); });
+}
+function setObjective(qid, oid, done){
+  const at = nowIso();
+  const before = S.quests.find(q => q.id === qid);
+  const wasDone = before && before.status === "done";
+  mutateQuest(qid, q => {
+    const o = findObj(q, oid); if (!o) return;
+    o.done = done;
+    if (done) { if (!o.doneAt) o.doneAt = at; } else delete o.doneAt;
+    const {n, d} = progress(q);
+    if (n > 0 && d === n) { if (q.status !== "done") { q.status = "done"; q.doneAt = at; } }
+    else if (q.status === "done") { q.status = "active"; delete q.doneAt; }
+  });
+  const after = S.quests.find(q => q.id === qid);
+  if (!wasDone && after && after.status === "done") banner("Quest complete!", `${after.title} · +${questBonus(after)} XP bonus`);
+}
+function setStep(qid, oid, si, done){
+  mutateQuest(qid, q => { const o = findObj(q, oid); if (o && o.steps && o.steps[si]) o.steps[si].done = done; });
+}
+function setDue(target, v, rule){
+  if (target.due === v) return;
+  if (isYmd(target.due) && !target.done && diffDays(target.due, today()) > 0) target.drainBanked = drainFor(target, null, rule);
+  target.due = v || null;
+}
+function logDeed({kind, text, allyId, xp}){
+  if (!needDb()) return;
+  const ally = allyId ? S.allies.find(a => a.id === allyId) : null;
+  const body = {kind, text: String(text || "").slice(0, 500), at: nowIso(), date: today(), xp: xp || DEEDS[kind]?.xp || 10};
+  if (ally) { body.allyId = ally.id; body.allyName = ally.name; }
+  addDoc("chronicle", body).then(() => toast(`${DEEDS[kind]?.label || "Good deed"} logged. +${body.xp} XP`)).catch(() => {});
+  if (ally) updateDoc("allies/" + ally.id, {last: today()});
+}
+
+/* ---------- Claude breakdown ---------- */
+function breakdownPrompt(item){
+  const t = today();
+  const wd = new Date().toLocaleDateString("en-US", {weekday:"long"});
+  return `You are breaking a to-do item into a quest for a person's gamified task tracker.
+Today is ${wd}, ${t}. They have free time on weekday mornings, weekday afternoons and evenings, and weekends.
+
+Item: """${item.text}"""
+${item.question && item.answer ? `Earlier you asked: "${item.question}". They answered: "${item.answer}".` : ""}
+Area hint: ${REALMS[item.realm] ? item.realm : "pick the best fit"} (work = their job, which includes teaching; job = job search; personal = home, errands, health, money; other = anything else).
+
+Match the detail to the size of the item:
+- Tiny (under an hour): 1 chapter, 1 to 4 objectives.
+- Medium (a few hours to a few days): 1 or 2 chapters, 3 to 8 objectives.
+- Big (weeks, many parts): 3 to 6 chapters that are phases in order, each with 2 to 6 objectives.
+Objectives are concrete actions that start with a verb and fit in one sitting (15 to 120 minutes). Add "steps" (short sub-actions, at most 6) only where an objective needs them.
+"est" is minutes. XP per objective: 10 for about 15 min, 15 for 30 min, 25 for 60 min, 40 for 2 hours.
+If the item names a deadline, set the quest "due" (YYYY-MM-DD) and spread objective due dates before it. Otherwise use null.
+priority: 1 normal, 2 important, 3 urgent.
+If you truly cannot plan it without one key fact, reply with only {"question": "<one short question>"} instead.
+
+Reply with only JSON in this shape:
+{"title": string, "realm": "work"|"job"|"personal"|"other", "due": string|null, "priority": 1|2|3, "notes": string, "chapters": [{"title": string, "objectives": [{"title": string, "est": number, "xp": number, "due": string|null, "steps": [string]}]}]}`;
+}
+function normalizeQuest(raw, item){
+  const chs = Array.isArray(raw.chapters) ? raw.chapters.slice(0, 8) : [];
+  return {
+    title: String(raw.title || item.text).slice(0, 140),
+    realm: REALMS[raw.realm] ? raw.realm : (REALMS[item.realm] ? item.realm : "other"),
+    due: isYmd(raw.due) ? raw.due : null,
+    priority: clampInt(raw.priority, 1, 3, 1),
+    notes: String(raw.notes || "").slice(0, 800),
+    status: "active", createdAt: nowIso(), source: "inbox",
+    chapters: chs.map((c, ci) => ({
+      title: String(c.title || `Chapter ${ci + 1}`).slice(0, 100),
+      objectives: (Array.isArray(c.objectives) ? c.objectives.slice(0, 12) : []).map(o => ({
+        id: rid(), title: String(o.title || "").slice(0, 160), est: clampInt(o.est, 5, 600, null),
+        xp: clampInt(o.xp, 5, 60, 10), due: isYmd(o.due) ? o.due : null, done: false,
+        steps: (Array.isArray(o.steps) ? o.steps.slice(0, 8) : []).map(s => ({t: String(typeof s === "string" ? s : (s && (s.t || s.title)) || "").slice(0, 140), done:false})).filter(s => s.t),
+      })).filter(o => o.title),
+    })).filter(c => c.objectives.length),
+  };
+}
+function sampleErr(e){
+  const c = e && e.code;
+  if (c === "not_granted" || c === "sampling_disabled" || c === "not_declared" || c === "capability_disabled" || c === "capability_removed") return "Claude isn't available on this page. Your morning check-in will break it down, or bring it to chat.";
+  if (c === "rate_limited") return "Claude is busy right now. Try again in a few minutes.";
+  if (c === "invalid_json" || c === "empty") return "Claude's answer didn't come back as a quest. Try again.";
+  if (c === "refused") return "Claude couldn't break that one down. Try rewording it.";
+  return "Couldn't reach Claude. Try again in a moment.";
+}
+async function breakDown(id, fresh){
+  const item = S.inbox.find(x => x.id === id);
+  if (!item || !sample || S.busy[id]) return;
+  S.busy[id] = true; render();
+  try {
+    const raw = await sample.json(breakdownPrompt(item), fresh ? {cache:false} : {});
+    if (raw && typeof raw === "object" && !Array.isArray(raw) && raw.question && !raw.chapters) {
+      await db.doc("inbox/" + id).update({question: String(raw.question).slice(0, 300), answer: null});
+      toast("Claude has a question about this one.");
+    } else {
+      const q = normalizeQuest(raw && typeof raw === "object" ? raw : {}, item);
+      if (!q.chapters.length) throw {code:"empty"};
+      S.preview = {inboxId:id, quest:q};
+    }
+  } catch (e) {
+    console.error(e);
+    toast(sampleErr(e), "bad");
+    if (["not_granted","sampling_disabled","not_declared","capability_disabled","capability_removed"].includes(e && e.code)) sample = null;
+  } finally { delete S.busy[id]; render(); }
+}
+async function acceptPreview(){
+  const p = S.preview; if (!p || !needDb()) return;
+  S.preview = null; render();
+  try {
+    const ref = db.collection("quests").doc();
+    await ref.set(p.quest);
+    S.open[ref.id] = true;
+    await db.doc("inbox/" + p.inboxId).delete();
+    toast("Quest accepted. Good luck out there.");
+  } catch (e) { toast(errText(e), "bad"); }
+}
+
+/* ---------- Effects ---------- */
+function toast(msg, tone){
+  const el = document.createElement("div");
+  el.className = "win toast " + (tone || ""); el.setAttribute("role", "status"); el.textContent = msg;
+  $("fx").querySelectorAll(".toast").forEach(t => t.remove());
+  $("fx").appendChild(el); setTimeout(() => el.remove(), 3400);
+}
+function floatXp(n){
+  const el = document.createElement("div");
+  el.className = "float" + (n < 0 ? " loss" : ""); el.textContent = `${n > 0 ? "+" : "−"}${Math.abs(n)} XP`;
+  $("fx").appendChild(el); setTimeout(() => el.remove(), 1400);
+}
+function banner(title, sub){
+  const el = document.createElement("div");
+  el.className = "win banner"; el.setAttribute("role", "status");
+  el.innerHTML = `<h3>${esc(title)}</h3><p>${esc(sub)}</p>`;
+  $("fx").appendChild(el); setTimeout(() => el.remove(), 3600);
+}
+
+/* ---------- Views ---------- */
+function dueChip(due){
+  if (!isYmd(due)) return "";
+  const d = diffDays(today(), due);
+  if (d < 0) return `<span class="chip bad">${ICON.drop} ${plural(-d, "day")} overdue</span>`;
+  return `<span class="chip ${d <= 1 ? "warn" : "dim"}">due ${esc(fmtDue(due))}</span>`;
+}
+function stars(p){ p = clampInt(p, 1, 3, 1); return `<span class="stars" aria-label="Priority ${p} of 3">${"★".repeat(p)}<span class="off">${"★".repeat(3 - p)}</span></span>`; }
+function realmChip(r){ return `<span class="chip r-${r}">${esc(REALMS[r].label)}</span>`; }
+
+function viewHud(e){
+  const L = e.level, cur = xpFor(L), nxt = xpFor(L + 1);
+  const pct = Math.max(0, Math.min(100, (e.xp - cur) / (nxt - cur) * 100));
+  return `<div class="hud-hero">
+      <div class="lvl" aria-label="Level ${L}"><span>LV</span><b>${L}</b></div>
+      <div class="hud-id">
+        <div class="hud-title">${esc(titleOf(L))}<small>${fmt(e.xp)} XP</small></div>
+        <span class="bar" role="progressbar" aria-label="Progress to level ${L + 1}" aria-valuemin="0" aria-valuemax="${nxt - cur}" aria-valuenow="${Math.max(0, e.xp - cur)}"><i style="width:${pct.toFixed(1)}%"></i></span>
+        <div class="hud-sub">${fmt(e.xp - cur)} / ${fmt(nxt - cur)} XP to level ${L + 1}</div>
+      </div>
+    </div>
+    <div class="hud-stats">
+      <span class="stat" title="Spend gold in the Shop">${ICON.coin}<b class="gold-t">${fmt(e.gold)}</b><small>gold</small></span>
+      <span class="stat" title="Days in a row with at least one objective or good deed">${ICON.flame}<b>${e.streak}</b><small>day streak</small></span>
+      ${e.drainRate ? `<span class="stat bad" title="Overdue items are draining XP">${ICON.drop}<b>−${e.drainRate}</b><small>XP a day</small></span>` : ""}
+    </div>`;
+}
+function viewTabs(){
+  const overdue = alerts().filter(a => a.sev === "bad").length;
+  const fading = S.allies.filter(a => allyState(a).status === "fading").length;
+  const tabs = [["today","Today",""],["quests","Quests", overdue ? `<span class="dot" aria-label="${overdue} overdue">${overdue}</span>` : ""],
+    ["allies","Allies", fading ? `<span class="dot heart" aria-label="${fading} to reach out to">${fading}</span>` : ""],
+    ["journal","Journal",""],["shop","Shop",""],["hero","Hero",""]];
+  return tabs.map(([id, label, dot]) => `<button class="tab" role="tab" id="tab-${id}" aria-selected="${S.tab === id}" data-act="tab" data-id="${id}">${label}${dot}</button>`).join("");
+}
+
+function viewObjRow(q, o, opt = {}){
+  const id = `chk-${q.id}-${o.id}`;
+  const due = o.due || (opt.showQuest ? q.due : null);
+  const steps = o.steps || [];
+  return `<li class="row${o.done ? " done" : ""}">
+    <input type="checkbox" class="chk" id="${esc(id)}" data-q="${esc(q.id)}" data-o="${esc(o.id)}" ${o.done ? "checked" : ""}>
+    <div class="main">
+      <label class="t" for="${esc(id)}">${esc(o.title)}</label>
+      <div class="meta">
+        ${opt.showQuest ? `${realmChip(realmOf(q))}<span class="q-ref">${esc(q.title)}</span>` : ""}
+        ${o.est ? `<span>${fmtMin(o.est)}</span>` : ""}
+        <span class="xp">+${objXp(o)} XP</span>
+        ${o.done ? "" : dueChip(due)}
+        ${o.scheduled && !o.done ? `<span class="chip sched">${ICON.cal} ${esc(fmtWhen(o.scheduled))}</span>` : ""}
+      </div>
+      ${steps.length && !opt.showQuest ? `<ul class="steps">${steps.map((s, si) => `<li>
+        <input type="checkbox" class="chk sm" id="${esc(id)}-s${si}" data-q="${esc(q.id)}" data-o="${esc(o.id)}" data-s="${si}" ${s.done ? "checked" : ""}>
+        <label for="${esc(id)}-s${si}">${esc(s.t)}</label></li>`).join("")}</ul>` : ""}
+      ${opt.edit ? `<div class="edit-row">
+        <label>Due <input type="date" id="od-${esc(q.id)}-${esc(o.id)}" data-field="odue" data-q="${esc(q.id)}" data-o="${esc(o.id)}" value="${esc(o.due || "")}"></label>
+        <button class="btn ghost sm" data-act="del-obj" data-q="${esc(q.id)}" data-o="${esc(o.id)}">Remove objective</button>
+      </div>` : ""}
+    </div>
+  </li>`;
+}
+
+function viewToday(){
+  const t = today();
+  const m = S.meta.today && S.meta.today.date === t ? S.meta.today : null;
+  const al = alerts(), nu = nextUp().slice(0, 7);
+  const overdue = al.filter(a => a.sev === "bad").length;
+  return `<div class="cols">
+    <div class="stack">
+      ${m && m.note ? `<section class="win" aria-labelledby="h-dispatch">
+        <h2 class="win-h" id="h-dispatch"><span>Morning dispatch</span><span class="hint">from Claude</span></h2>
+        <p class="dispatch">${esc(m.note)}</p>
+        ${Array.isArray(m.focus) && m.focus.length ? `<ul class="focus">${m.focus.slice(0, 6).map(f => `<li>${esc(f)}</li>`).join("")}</ul>` : ""}
+      </section>` : ""}
+      <section class="win" aria-labelledby="h-alerts">
+        <h2 class="win-h" id="h-alerts"><span>Deadlines</span>${overdue ? `<span class="chip bad">${overdue} overdue</span>` : al.length ? "" : `<span class="chip ok">all clear</span>`}</h2>
+        ${al.length ? `<ul class="rows">${al.map(a => `<li class="row alert ${a.sev}">
+          <span class="alert-ic">${a.sev === "bad" ? ICON.drop : ICON.warn}</span>
+          <div class="main"><span class="t">${esc(a.title)}</span><div class="meta">${a.quest ? `<span class="q-ref">${esc(a.quest)}</span>` : ""}<span>${esc(a.sub)}</span></div></div>
+          <div class="side"><button class="btn sm" data-act="goto-quest" data-q="${esc(a.q)}">Open</button></div>
+        </li>`).join("")}</ul>` : `<p class="empty">Nothing overdue and nothing due in the next 3 days.</p>`}
+      </section>
+      <section class="win" aria-labelledby="h-next">
+        <h2 class="win-h" id="h-next"><span>Next objectives</span><span class="hint">tick to earn XP</span></h2>
+        ${nu.length ? `<ul class="rows">${nu.map(x => viewObjRow(x.q, x.o, {showQuest:true})).join("")}</ul>`
+          : `<p class="empty">No open objectives. Add something to the inbox and break it into a quest, or tell Claude in chat.</p>`}
+      </section>
+    </div>
+    <div class="stack">
+      ${viewSideQuest()}
+      ${viewInbox()}
+      ${viewBonds()}
+    </div>
+  </div>`;
+}
+function viewSideQuest(){
+  const sq = sideQuest(), xp = sideQuestXp(sq);
+  return `<section class="win deed" aria-labelledby="h-side">
+    <h2 class="win-h" id="h-side"><span>Today's side quest</span><span class="chip heart">bonus +${xp} XP</span></h2>
+    <p class="deed-cat">${ICON.heart} ${esc(DEEDS[sq.kind]?.cat || "Good deed")}${sq.from ? `<span class="hint">· picked by Claude</span>` : ""}</p>
+    <p class="deed-text">${esc(sq.text)}</p>
+    ${S.deedOpen ? `<form data-form="deed" class="form-col">
+        <label class="sr" for="deed-note">What did you do?</label>
+        <input id="deed-note" data-draft type="text" placeholder="What did you do? (optional)" value="${esc(S.drafts["deed-note"] || "")}" autocomplete="off">
+        <div class="btn-row"><button class="btn heart">Log it · +${xp} XP</button><button type="button" class="btn ghost" data-act="deed-cancel">Cancel</button></div>
+      </form>`
+      : `<div class="btn-row"><button class="btn heart" data-act="deed-open">I did it</button><button class="btn ghost" data-act="deed-next">Show another</button></div>`}
+  </section>`;
+}
+function viewInbox(){
+  const items = [...S.inbox].sort((a, b) => String(a.at).localeCompare(String(b.at)));
+  return `<section class="win" aria-labelledby="h-inbox">
+    <h2 class="win-h" id="h-inbox"><span>Inbox</span><span class="hint">things to break into quests</span></h2>
+    <form data-form="inbox" class="form">
+      <label class="sr" for="inbox-text">Something you need to get done</label>
+      <input id="inbox-text" data-draft type="text" style="flex:1 1 100%" placeholder="e.g. Plan the fractions unit by Nov 3" value="${esc(S.drafts["inbox-text"] || "")}" autocomplete="off">
+      <label class="sr" for="inbox-realm">Area</label>
+      <select id="inbox-realm" data-draft>
+        <option value="">Any area</option>
+        ${Object.entries(REALMS).map(([k, v]) => `<option value="${k}" ${S.drafts["inbox-realm"] === k ? "selected" : ""}>${esc(v.label)}</option>`).join("")}
+      </select>
+      <button class="btn primary">Add</button>
+    </form>
+    ${items.length ? `<ul class="rows" style="margin-top:8px">${items.map(it => {
+      const busy = S.busy[it.id];
+      return `<li class="row"><div class="main">
+        <span class="t" style="cursor:default">${esc(it.text)}</span>
+        <div class="meta">${REALMS[it.realm] ? realmChip(it.realm) : ""}<span>added ${esc(fmtDue(localDay(it.at) || today()))}</span></div>
+        ${it.question ? `<form class="question" data-form="answer" data-id="${esc(it.id)}">
+            <p><b>Claude asks:</b> ${esc(it.question)}</p>
+            ${it.answer ? `<p><b>You said:</b> ${esc(it.answer)}</p>` : `<div class="form">
+              <label class="sr" for="ans-${esc(it.id)}">Your answer</label>
+              <input id="ans-${esc(it.id)}" data-draft type="text" placeholder="Your answer" value="${esc(S.drafts["ans-" + it.id] || "")}" autocomplete="off">
+              <button class="btn sm">Answer</button></div>`}
+          </form>` : ""}
+        <div class="btn-row" style="margin-top:4px">
+          ${sample ? `<button class="btn sm primary" data-act="breakdown" data-id="${esc(it.id)}" ${busy ? "disabled" : ""}>${busy ? "Claude is planning…" : "Break it down"}</button>` : ""}
+          <button class="btn ghost sm" data-act="inbox-del" data-id="${esc(it.id)}">Delete</button>
+        </div>
+      </div></li>`; }).join("")}</ul>
+      ${sample ? "" : `<p class="empty" style="margin-top:6px">Your next morning check-in will turn these into quests. For a big one, bring it to chat so Claude can ask questions.</p>`}`
+    : `<p class="empty" style="margin-top:8px">Add anything you need to get done. Claude turns each item into a quest with steps and XP.</p>`}
+  </section>`;
+}
+function viewBonds(){
+  const fading = fadingAllies().slice(0, 4);
+  const bdays = S.allies.map(a => ({a, b: nextBirthday(a)})).filter(x => x.b && x.b.inDays <= 14).sort((x, y) => x.b.inDays - y.b.inDays);
+  if (!S.allies.length) return `<section class="win" aria-labelledby="h-bonds">
+    <h2 class="win-h" id="h-bonds"><span>Bonds</span></h2>
+    <p class="empty">Add the people who matter to you on the Allies tab. You'll get nudges when it's been a while, plus bonus XP for reaching out.</p>
+    <div class="btn-row" style="margin-top:10px"><button class="btn sm" data-act="tab" data-id="allies">Add allies</button></div></section>`;
+  if (!fading.length && !bdays.length) return `<section class="win" aria-labelledby="h-bonds">
+    <h2 class="win-h" id="h-bonds"><span>Bonds</span><span class="chip heart">all close</span></h2>
+    <p class="empty">You're in touch with everyone on your list. Nice work.</p></section>`;
+  return `<section class="win" aria-labelledby="h-bonds">
+    <h2 class="win-h" id="h-bonds"><span>Bonds</span><span class="hint">people to reach</span></h2>
+    <ul class="rows">
+      ${bdays.map(({a, b}) => `<li class="row"><span class="alert-ic">${ICON.cake}</span><div class="main">
+        <span class="t" style="cursor:default">${esc(a.name)}'s birthday ${b.inDays === 0 ? "is today" : `in ${plural(b.inDays, "day")}`}</span>
+        <div class="meta"><span>${esc(toDate(b.date).toLocaleDateString(undefined, {weekday:"long", month:"short", day:"numeric"}))}</span><span class="chip heart">gift +${DEEDS.gift.xp} XP</span></div></div></li>`).join("")}
+      ${fading.map(({a, s}) => `<li class="row"><span class="alert-ic">${s.status === "fading" ? ICON.heart0 : ICON.heart}</span><div class="main">
+        <span class="t" style="cursor:default">${esc(a.name)}</span>
+        <div class="meta"><span>${s.since == null ? "no contact logged" : `${plural(s.since, "day")} since you talked`}</span>${s.status === "fading" ? `<span class="chip heart">+${FADING_BONUS} reconnect bonus</span>` : ""}</div></div>
+        <div class="side"><button class="btn sm" data-act="reach-open" data-id="${esc(a.id)}">Reached out</button></div></li>`).join("")}
+    </ul></section>`;
+}
+
+function viewQuests(){
+  const filters = [["all","All"], ...Object.entries(REALMS).map(([k, v]) => [k, v.label]), ["done","Done"]];
+  let list;
+  if (S.realm === "done") list = S.quests.filter(q => !isActive(q)).sort((a, b) => String(b.doneAt || b.archivedAt || "").localeCompare(String(a.doneAt || a.archivedAt || "")));
+  else list = activeQuests().filter(q => S.realm === "all" || realmOf(q) === S.realm)
+    .sort((a, b) => dueSort(a.due, b.due) || clampInt(b.priority,1,3,1) - clampInt(a.priority,1,3,1) || String(a.createdAt || "").localeCompare(String(b.createdAt || "")));
+  return `<div class="stack">
+    <div class="toolbar">
+      <div class="chips" role="group" aria-label="Filter quests">${filters.map(([k, l]) => `<button class="chip chip-btn" data-act="filter" data-id="${k}" aria-pressed="${S.realm === k}">${esc(l)}</button>`).join("")}</div>
+      <button class="btn" data-act="new-quest" aria-expanded="${S.newQuest}">New quest</button>
+    </div>
+    ${S.newQuest ? `<form class="win form" data-form="new-quest" aria-label="New quest">
+      <label class="f grow">Quest name<input id="nq-title" data-draft type="text" required value="${esc(S.drafts["nq-title"] || "")}" autocomplete="off"></label>
+      <label class="f">Area<select id="nq-realm" data-draft>${Object.entries(REALMS).map(([k, v]) => `<option value="${k}" ${S.drafts["nq-realm"] === k ? "selected" : ""}>${esc(v.label)}</option>`).join("")}</select></label>
+      <label class="f">Due (optional)<input id="nq-due" data-draft type="date" value="${esc(S.drafts["nq-due"] || "")}"></label>
+      <button class="btn primary" style="align-self:flex-end">Create</button>
+    </form>` : ""}
+    ${list.length ? list.map(q => viewQuest(q, list.length)).join("")
+      : `<section class="win"><p class="empty">${S.realm === "done" ? "Finished and archived quests show up here." : "No quests here yet. Add something to the inbox on Today, start a new quest above, or tell Claude in chat what you need to get done."}</p></section>`}
+  </div>`;
+}
+function viewQuest(q, count){
+  const r = realmOf(q), {n, d} = progress(q);
+  const open = S.open[q.id] ?? (count <= 2);
+  const edit = !!S.edit[q.id];
+  const left = [...eachObj(q)].filter(x => !x.o.done).reduce((s, x) => s + objXp(x.o), 0);
+  const done = q.status === "done", archived = q.status === "archived";
+  const pct = n ? d / n * 100 : 0;
+  return `<article class="win quest" id="quest-${esc(q.id)}">
+    <button class="quest-head" data-act="toggle-quest" data-q="${esc(q.id)}" aria-expanded="${open}" aria-controls="qb-${esc(q.id)}">
+      <span class="q-title"><span class="q-caret" aria-hidden="true">▶</span>${esc(q.title)}</span>
+      <span class="q-reward">${done ? `<span class="chip ok">complete</span>` : archived ? `<span class="chip dim">archived</span>` : `<span class="xp">+${left + questBonus(q)} XP</span>`}${stars(q.priority)}</span>
+      <span class="q-line">${realmChip(r)}${done || archived ? "" : dueChip(q.due)}<span class="bar thin"><i style="width:${pct.toFixed(1)}%"></i></span><span class="q-count">${d}/${n}</span></span>
+    </button>
+    ${open ? `<div class="quest-body" id="qb-${esc(q.id)}">
+      ${edit ? `<div class="q-edit">
+        <label class="grow">Name<input type="text" id="qt-${esc(q.id)}" data-field="title" data-q="${esc(q.id)}" value="${esc(q.title)}"></label>
+        <label>Area<select id="qr-${esc(q.id)}" data-field="realm" data-q="${esc(q.id)}">${Object.entries(REALMS).map(([k, v]) => `<option value="${k}" ${r === k ? "selected" : ""}>${esc(v.label)}</option>`).join("")}</select></label>
+        <label>Due<input type="date" id="qd-${esc(q.id)}" data-field="due" data-q="${esc(q.id)}" value="${esc(q.due || "")}"></label>
+        <label>Priority<select id="qp-${esc(q.id)}" data-field="priority" data-q="${esc(q.id)}">${[1,2,3].map(p => `<option value="${p}" ${clampInt(q.priority,1,3,1) === p ? "selected" : ""}>${["Normal","Important","Urgent"][p-1]}</option>`).join("")}</select></label>
+      </div>` : ""}
+      ${q.notes ? `<p class="q-notes">${esc(q.notes)}</p>` : ""}
+      ${(q.chapters.length ? q.chapters : [{title:"Objectives", objectives:[]}]).map((ch, ci) => {
+        const cd = ch.objectives.filter(o => o.done).length;
+        return `<section class="chapter">
+          ${q.chapters.length > 1 || edit ? `<h4>Chapter ${ci + 1} · ${esc(ch.title)} <small>${cd}/${ch.objectives.length}</small></h4>` : ""}
+          ${ch.objectives.length ? `<ul class="rows">${ch.objectives.map(o => viewObjRow(q, o, {edit})).join("")}</ul>` : `<p class="empty">No objectives yet.</p>`}
+          ${edit ? `<form class="form" data-form="add-obj" data-q="${esc(q.id)}" data-c="${ci}" style="margin-top:6px">
+            <label class="sr" for="ao-${esc(q.id)}-${ci}">New objective</label>
+            <input type="text" id="ao-${esc(q.id)}-${ci}" data-draft placeholder="Add an objective" value="${esc(S.drafts[`ao-${q.id}-${ci}`] || "")}" autocomplete="off">
+            <label class="sr" for="ax-${esc(q.id)}-${ci}">Size</label>
+            <select id="ax-${esc(q.id)}-${ci}" data-draft>${[[10,"15 min · 10 XP"],[15,"30 min · 15 XP"],[25,"1 hr · 25 XP"],[40,"2 hr · 40 XP"]].map(([x, l]) => `<option value="${x}" ${String(S.drafts[`ax-${q.id}-${ci}`] || "15") === String(x) ? "selected" : ""}>${l}</option>`).join("")}</select>
+            <button class="btn sm">Add</button>
+          </form>` : ""}
+        </section>`; }).join("")}
+      <div class="q-actions">
+        <span class="hint">${done ? `Finished ${esc(fmtDue(localDay(q.doneAt) || today()))} · bonus +${questBonus(q)} XP earned` : `Finish every objective for a +${questBonus(q)} XP bonus`}</span>
+        <div class="btn-row">
+          <button class="btn sm" data-act="edit-quest" data-q="${esc(q.id)}" aria-pressed="${edit}">${edit ? "Done editing" : "Edit"}</button>
+          ${archived ? `<button class="btn sm" data-act="restore-quest" data-q="${esc(q.id)}">Restore</button>` : done ? "" : `<button class="btn sm" data-act="archive-quest" data-q="${esc(q.id)}">Abandon</button>`}
+          ${edit ? `<button class="btn sm danger" data-act="delete-quest" data-q="${esc(q.id)}">Delete</button>` : ""}
+        </div>
+      </div>
+    </div>` : ""}
+  </article>`;
+}
+
+function viewAllies(){
+  const list = S.allies.map(a => ({a, s: allyState(a), b: nextBirthday(a)})).sort((x, y) => y.s.ratio - x.s.ratio || String(x.a.name).localeCompare(String(y.a.name)));
+  const statusChip = s => s.status === "fading" ? `<span class="chip heart">reach out</span>` : s.status === "soon" ? `<span class="chip warn">soon</span>` : s.status === "new" ? `<span class="chip dim">new</span>` : `<span class="chip ok">close</span>`;
+  return `<div class="stack">
+    <form class="win form" data-form="ally" aria-labelledby="h-add-ally">
+      <h2 class="win-h" id="h-add-ally" style="flex-basis:100%"><span>Add an ally</span><span class="hint">someone you want to stay close to</span></h2>
+      <label class="f grow">Name<input id="al-name" data-draft type="text" required value="${esc(S.drafts["al-name"] || "")}" autocomplete="off"></label>
+      <label class="f grow">Who they are<input id="al-rel" data-draft type="text" placeholder="sister, best friend, mentor" value="${esc(S.drafts["al-rel"] || "")}" autocomplete="off"></label>
+      <label class="f">Check in<select id="al-every" data-draft>${[3,7,14,30,60,90].map(n => `<option value="${n}" ${String(S.drafts["al-every"] || "14") === String(n) ? "selected" : ""}>${cadence(n)}</option>`).join("")}</select></label>
+      <label class="f">Birthday (optional)<input id="al-bday" data-draft type="date" value="${esc(S.drafts["al-bday"] || "")}"></label>
+      <button class="btn primary" style="align-self:flex-end">Add</button>
+    </form>
+    ${list.length ? `<div class="ally-list">${list.map(({a, s, b}) => `<article class="win ally">
+      <div class="ally-top">
+        <div><div class="ally-name">${esc(a.name)}</div>${a.relation ? `<div class="ally-rel">${esc(a.relation)}</div>` : ""}</div>
+        ${statusChip(s)}
+      </div>
+      <div class="hearts" role="img" aria-label="Bond ${Math.round(s.bond * 5)} of 5">${Array.from({length:5}, (_, i) => i < Math.round(s.bond * 5) ? ICON.heart : ICON.heart0).join("")}</div>
+      <div class="meta"><span>${s.since == null ? "No contact logged yet" : s.since === 0 ? "Talked today" : `Last contact ${plural(s.since, "day")} ago`}</span><span>· aim ${cadence(s.every)}</span>
+        ${b && b.inDays <= 30 ? `<span class="chip heart">${ICON.cake} birthday ${b.inDays === 0 ? "today" : `in ${plural(b.inDays, "day")}`}</span>` : ""}</div>
+      ${S.reachFor === a.id ? `<form class="form-col" data-form="reach" data-id="${esc(a.id)}">
+          <div class="form">
+            <label class="sr" for="rh-${esc(a.id)}">How</label>
+            <select id="rh-${esc(a.id)}" data-draft>${Object.entries(HOW).map(([k, [l]]) => `<option value="${k}" ${S.drafts["rh-" + a.id] === k ? "selected" : ""}>${esc(l)} them</option>`).join("")}</select>
+            <label class="sr" for="rn-${esc(a.id)}">Note</label>
+            <input id="rn-${esc(a.id)}" class="grow" data-draft type="text" placeholder="What about? (optional)" value="${esc(S.drafts["rn-" + a.id] || "")}" autocomplete="off">
+          </div>
+          <div class="btn-row"><button class="btn heart">Log it · +${DEEDS.reach.xp + (s.status === "fading" ? FADING_BONUS : 0)} XP</button><button type="button" class="btn ghost" data-act="reach-cancel">Cancel</button></div>
+        </form>`
+        : `<div class="btn-row"><button class="btn heart sm" data-act="reach-open" data-id="${esc(a.id)}">Reached out</button><button class="btn ghost sm" data-act="ally-del" data-id="${esc(a.id)}">Remove</button></div>`}
+    </article>`).join("")}</div>`
+    : `<section class="win"><p class="empty">No allies yet. Add family, friends, mentors, anyone you want to stay close to. Pick how often you'd like to connect and the Today page will remind you when it's been a while.</p></section>`}
+  </div>`;
+}
+
+function viewJournal(){
+  const t = today();
+  const m = S.meta.today && S.meta.today.date === t ? S.meta.today : null;
+  const prompt = (m && m.reflection) || REFLECTIONS[hash(t) % REFLECTIONS.length];
+  const week = S.meta.week;
+  const entries = [...S.chronicle].sort((a, b) => String(b.at).localeCompare(String(a.at)));
+  const shown = entries.slice(0, S.journalLimit);
+  const groups = [];
+  for (const c of shown) { const day = isYmd(c.date) ? c.date : localDay(c.at) || t; const g = groups[groups.length - 1]; if (g && g.day === day) g.items.push(c); else groups.push({day, items:[c]}); }
+  const kind = S.drafts["jn-kind"] || "gratitude";
+  return `<div class="cols">
+    <div class="stack">
+      <form class="win deed form-col" data-form="journal" aria-labelledby="h-reflect">
+        <h2 class="win-h" id="h-reflect"><span>Reflection</span><span class="hint">every entry earns XP</span></h2>
+        <p class="deed-text" style="margin:0">${esc(prompt)}</p>
+        <label class="sr" for="jn-text">Your entry</label>
+        <textarea id="jn-text" data-draft placeholder="Write a line or two">${esc(S.drafts["jn-text"] || "")}</textarea>
+        <div class="form">
+          <label class="f">Kind<select id="jn-kind" data-draft>${Object.entries(DEEDS).map(([k, v]) => `<option value="${k}" ${kind === k ? "selected" : ""}>${esc(v.label)} · +${v.xp} XP</option>`).join("")}</select></label>
+          ${S.allies.length ? `<label class="f">Person (optional)<select id="jn-ally" data-draft><option value="">Nobody in particular</option>${S.allies.map(a => `<option value="${esc(a.id)}" ${S.drafts["jn-ally"] === a.id ? "selected" : ""}>${esc(a.name)}</option>`).join("")}</select></label>` : ""}
+          <button class="btn heart" style="align-self:flex-end">Log it</button>
+        </div>
+      </form>
+      <section class="win" aria-labelledby="h-chron">
+        <h2 class="win-h" id="h-chron"><span>Chronicle</span><span class="hint">${plural(entries.length, "entry").replace("entrys", "entries")}</span></h2>
+        ${groups.length ? groups.map(g => `<h3 class="day-h">${esc(fmtDay(g.day))}</h3><ul class="rows">${g.items.map(c => `<li class="row">
+          <div class="main"><span class="entry-kind">${esc(DEEDS[c.kind]?.label || "Entry")}${c.allyName ? ` · ${esc(c.allyName)}` : ""}</span>
+          <span style="overflow-wrap:anywhere">${esc(c.text)}</span></div>
+          <div class="side"><span class="xp">+${deedXp(c)}</span><button class="btn ghost sm" data-act="entry-del" data-id="${esc(c.id)}" aria-label="Delete entry">✕</button></div>
+        </li>`).join("")}</ul>`).join("") : `<p class="empty">Your good deeds, gratitude and moments you savored will collect here.</p>`}
+        ${entries.length > shown.length ? `<div class="btn-row" style="margin-top:8px"><button class="btn sm" data-act="more-journal">Show older entries</button></div>` : ""}
+      </section>
+    </div>
+    <div class="stack">
+      ${week && week.summary ? `<section class="win" aria-labelledby="h-week">
+        <h2 class="win-h" id="h-week"><span>Weekly review</span><span class="hint">${week.weekOf ? `week of ${esc(toDate(week.weekOf).toLocaleDateString(undefined, {month:"short", day:"numeric"}))}` : ""}</span></h2>
+        <p class="dispatch">${esc(week.summary)}</p>
+        ${Array.isArray(week.highlights) && week.highlights.length ? `<ul class="focus">${week.highlights.slice(0, 8).map(h => `<li>${esc(h)}</li>`).join("")}</ul>` : ""}
+      </section>` : `<section class="win"><h2 class="win-h"><span>Weekly review</span></h2><p class="empty">Each Sunday evening Claude looks back at your week, including the good moments, and posts a summary here.</p></section>`}
+      ${viewSideQuest()}
+    </div>
+  </div>`;
+}
+
+function viewShop(e){
+  const wares = [...S.rewards].sort((a, b) => (Number(a.cost) || 0) - (Number(b.cost) || 0));
+  const recent = [...S.purchases].sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, 12);
+  return `<div class="cols">
+    <div class="stack">
+      <section class="win" aria-labelledby="h-shop">
+        <h2 class="win-h" id="h-shop"><span>Merchant</span><span class="hint">spend gold on real rewards</span></h2>
+        <div class="purse">${ICON.coin.replace('class="px"', 'class="px lg"')}${fmt(e.gold)}<small>gold in your purse</small></div>
+        ${wares.length ? `<div class="shop-grid" style="margin-top:14px">${wares.map(w => {
+          const cost = clampInt(w.cost, 1, 100000, 50), can = e.gold >= cost;
+          return `<div class="ware${can ? " can" : ""}">
+            <div><div class="ware-t">${esc(w.title)}</div>${w.example ? `<span class="chip dim" style="margin-top:4px">example</span>` : ""}</div>
+            <div class="ware-c">${ICON.coin}${fmt(cost)}</div>
+            <div class="btn-row"><button class="btn sm primary" data-act="buy" data-id="${esc(w.id)}" ${can ? "" : "disabled"}>${can ? "Claim" : `Need ${fmt(cost - e.gold)} more`}</button>
+            <button class="btn ghost sm" data-act="reward-del" data-id="${esc(w.id)}">Remove</button></div>
+          </div>`; }).join("")}</div>` : `<p class="empty" style="margin-top:10px">The shelves are empty. Add rewards you'd actually look forward to.</p>`}
+      </section>
+      <form class="win form" data-form="reward" aria-labelledby="h-stock">
+        <h2 class="win-h" id="h-stock" style="flex-basis:100%"><span>Stock the shop</span><span class="hint">you earn about half your XP as gold</span></h2>
+        <label class="f grow">Reward<input id="rw-title" data-draft type="text" placeholder="Fancy coffee, movie night, new game" required value="${esc(S.drafts["rw-title"] || "")}" autocomplete="off"></label>
+        <label class="f">Price in gold<input id="rw-cost" data-draft type="number" min="1" step="1" inputmode="numeric" required value="${esc(S.drafts["rw-cost"] || "")}" style="width:110px"></label>
+        <button class="btn primary" style="align-self:flex-end">Add</button>
+      </form>
+    </div>
+    <div class="stack">
+      <section class="win" aria-labelledby="h-claimed">
+        <h2 class="win-h" id="h-claimed"><span>Claimed</span><span class="hint">${fmt(e.spent)} gold spent</span></h2>
+        ${recent.length ? `<ul class="rows">${recent.map(p => `<li class="row"><div class="main"><span>${esc(p.title)}</span>
+          <div class="meta"><span>${esc(fmtDay(localDay(p.at) || today()))}</span></div></div><div class="side"><span class="gold-t">−${fmt(p.cost)}</span></div></li>`).join("")}</ul>`
+          : `<p class="empty">Rewards you claim show up here. Go enjoy them.</p>`}
+      </section>
+    </div>
+  </div>`;
+}
+
+function viewHero(e){
+  const L = e.level, nt = nextTitle(L);
+  const statMax = Math.max(1, ...Object.values(e.stats));
+  const statRows = [["work", REALMS.work.label, "mana"], ["job", REALMS.job.label, "violet"], ["personal", REALMS.personal.label, ""], ["other", REALMS.other.label, "warn"], ["heart", "Heart", "heart"]];
+  const got = e.badges.filter(b => b.got).length;
+  return `<div class="stack">
+    <section class="win" aria-labelledby="h-sheet">
+      <h2 class="win-h" id="h-sheet"><span>Character sheet</span></h2>
+      <div class="sheet">
+        <div class="big-lvl"><span>LEVEL</span><b>${L}</b></div>
+        <div class="stack" style="gap:10px">
+          <div><h3 style="font-size:26px">${esc(titleOf(L))}</h3>
+          <p class="hint">${nt ? `Become ${esc(nt.name)} at level ${nt.level}` : "Highest title reached"}</p></div>
+          <dl class="ledger" style="margin:0">
+            <div><dt>XP earned</dt><dd class="xp" style="font-size:22px">${fmt(e.earned)}</dd></div>
+            <div><dt>Lost to deadlines</dt><dd style="color:var(--hp)">−${fmt(e.drained)}</dd></div>
+            <div><dt>Gold earned</dt><dd class="gold-t">${fmt(e.goldIn)}</dd></div>
+            <div><dt>Streak</dt><dd>${e.streak} <small class="hint">best ${e.best}</small></dd></div>
+            <div><dt>Quests done</dt><dd>${e.questsDone}</dd></div>
+            <div><dt>Good deeds</dt><dd style="color:var(--heart)">${e.deeds}</dd></div>
+          </dl>
+        </div>
+      </div>
+    </section>
+    <div class="cols">
+      <section class="win" aria-labelledby="h-stats">
+        <h2 class="win-h" id="h-stats"><span>Stats</span><span class="hint">XP earned in each area</span></h2>
+        <div class="stack" style="gap:10px">${statRows.map(([k, l, tone]) => `<div class="statline"><span>${esc(l)}</span><span class="bar ${tone}"><i style="width:${(e.stats[k] / statMax * 100).toFixed(1)}%"></i></span><b>${fmt(e.stats[k])}</b></div>`).join("")}</div>
+      </section>
+      <section class="win" aria-labelledby="h-rules">
+        <h2 class="win-h" id="h-rules"><span>How the game works</span></h2>
+        <ul class="rules">
+          <li><b>Objectives</b> earn 10 to 40 XP by size. Finishing a whole quest adds a 50 to 100 XP bonus.</li>
+          <li><b>Good deeds</b> earn 10 to 30 XP: reaching out, gratitude, kindness, helping, gifts, savoring life. Reconnecting with someone you've drifted from adds +${FADING_BONUS}.</li>
+          <li><b>Gold</b> is half of every XP you earn. Spend it in the Shop.</li>
+          <li><b>Deadlines bite.</b> An overdue objective drains ${OBJ_DRAIN.rate} XP a day (up to ${OBJ_DRAIN.cap}). An overdue quest drains ${QUEST_DRAIN.rate} a day (up to ${QUEST_DRAIN.cap}). Finishing or rescheduling stops the drain, but lost XP stays lost. You can drop a level.</li>
+          <li><b>Streaks</b> count days with at least one objective or good deed. Miss a day and it resets.</li>
+        </ul>
+      </section>
+    </div>
+    <section class="win" aria-labelledby="h-badges">
+      <h2 class="win-h" id="h-badges"><span>Badges</span><span class="hint">${got} of ${e.badges.length}</span></h2>
+      <div class="badges">${e.badges.map(b => `<div class="badge${b.got ? " got" : ""}"><b>${esc(b.name)}</b><span>${esc(b.desc)}</span></div>`).join("")}</div>
+    </section>
+  </div>`;
+}
+
+function viewModal(){
+  if (S.confirm) return `<div class="backdrop" data-act="modal-cancel"><div class="win modal" role="dialog" aria-modal="true" aria-labelledby="m-title" data-stop>
+    <h3 id="m-title">${esc(S.confirm.title)}</h3><p>${esc(S.confirm.body)}</p>
+    <div class="btn-row"><button class="btn ${S.confirm.danger ? "danger" : "primary"}" data-act="modal-ok" id="m-ok">${esc(S.confirm.ok)}</button><button class="btn ghost" data-act="modal-cancel">Cancel</button></div>
+  </div></div>`;
+  if (S.preview) {
+    const q = S.preview.quest;
+    const total = [...eachObj(q)].reduce((s, x) => s + objXp(x.o), 0) + questBonus(q);
+    return `<div class="backdrop"><div class="win modal" role="dialog" aria-modal="true" aria-labelledby="m-title">
+      <h2 class="win-h"><span>New quest</span><span class="xp">+${total} XP</span></h2>
+      <h3 id="m-title">${esc(q.title)}</h3>
+      <div class="meta">${realmChip(q.realm)}${q.due ? `<span>due ${esc(fmtDue(q.due))}</span>` : ""}${stars(q.priority)}</div>
+      ${q.notes ? `<p class="q-notes">${esc(q.notes)}</p>` : ""}
+      ${q.chapters.map((ch, ci) => `<div class="pv-ch"><h4>${q.chapters.length > 1 ? `Chapter ${ci + 1} · ` : ""}${esc(ch.title)}</h4><ul>${ch.objectives.map(o => `<li>${esc(o.title)} <span class="hint">${o.est ? fmtMin(o.est) + " · " : ""}+${objXp(o)} XP${o.due ? ` · due ${esc(fmtDue(o.due))}` : ""}</span>
+        ${o.steps.length ? `<ul>${o.steps.map(s => `<li>${esc(s.t)}</li>`).join("")}</ul>` : ""}</li>`).join("")}</ul></div>`).join("")}
+      <p class="hint">You can edit any of this after accepting. For a big project, chat with Claude instead so it can ask questions first.</p>
+      <div class="btn-row"><button class="btn primary" data-act="preview-accept" id="m-ok">Accept quest</button><button class="btn" data-act="preview-retry">Try again</button><button class="btn ghost" data-act="preview-discard">Discard</button></div>
+    </div></div>`;
+  }
+  return "";
+}
+
+/* ---------- Render ---------- */
+function render(){ if (raf) return; raf = requestAnimationFrame(() => { raf = 0; draw(); }); }
+function draw(){
+  const ae = document.activeElement, fid = ae && ae.id;
+  let sel = null; try { if (ae && typeof ae.selectionStart === "number") sel = [ae.selectionStart, ae.selectionEnd]; } catch (_) {}
+  const e = economy();
+  const ready = S.loaded.size === COLLS.length;
+  $("hud").innerHTML = viewHud(e);
+  $("tabs").innerHTML = viewTabs();
+  let body;
+  if (S.offline) body = `<section class="win"><h2 class="win-h"><span>Questlog is offline</span></h2><p>Open this page inside Claude to load your quests. This copy can't reach your saved progress.</p></section>`;
+  else if (S.failed) body = `<section class="win"><h2 class="win-h"><span>Couldn't load your quests</span></h2><p>Your saved progress didn't load. Reload the page to try again.</p></section>`;
+  else if (!ready) body = `<section class="win"><h2 class="win-h"><span>Loading</span></h2><p class="empty">Loading your quests, allies and journal…</p></section>`;
+  else body = ({today:viewToday, quests:viewQuests, allies:viewAllies, journal:viewJournal, shop:viewShop, hero:viewHero}[S.tab] || viewToday)(e);
+  $("main").innerHTML = body;
+  $("main").setAttribute("aria-labelledby", "tab-" + S.tab);
+  $("modal").innerHTML = viewModal();
+  if (fid) { const el = $(fid); if (el && el !== ae) { el.focus({preventScroll:true}); try { if (sel) el.setSelectionRange(sel[0], sel[1]); } catch (_) {} } }
+  if (ready) {
+    if (S.prevXp != null && e.xp !== S.prevXp) floatXp(e.xp - S.prevXp);
+    if (S.prevLevel != null && e.level > S.prevLevel) banner(`Level ${e.level}!`, `You are now a${/^[AEIOU]/.test(titleOf(e.level)) ? "n" : ""} ${titleOf(e.level)}.`);
+    S.prevXp = e.xp; S.prevLevel = e.level;
+  }
+}
+
+/* ---------- Events ---------- */
+const val = id => { const el = $(id); return el ? String(el.value || "").trim() : ""; };
+const clearDrafts = (...ids) => ids.forEach(id => delete S.drafts[id]);
+function ask(title, body, ok, onOk, danger){ S.confirm = {title, body, ok, onOk, danger}; render(); requestAnimationFrame(() => requestAnimationFrame(() => $("m-ok")?.focus())); }
+function setTab(id){ S.tab = id; try { localStorage.setItem("questlog-tab", id); } catch (_) {} render(); window.scrollTo({top:0}); }
+
+const ACT = {
+  tab: d => setTab(d.id),
+  filter: d => { S.realm = d.id; render(); },
+  "new-quest": () => { S.newQuest = !S.newQuest; render(); },
+  "toggle-quest": d => { const el = document.querySelector(`[data-act="toggle-quest"][data-q="${CSS.escape(d.q)}"]`); S.open[d.q] = !(el && el.getAttribute("aria-expanded") === "true"); render(); },
+  "edit-quest": d => { S.edit[d.q] = !S.edit[d.q]; S.open[d.q] = true; render(); },
+  "goto-quest": d => { S.open[d.q] = true; S.realm = "all"; setTab("quests"); requestAnimationFrame(() => requestAnimationFrame(() => $("quest-" + d.q)?.scrollIntoView({block:"start"}))); },
+  "archive-quest": d => { const q = S.quests.find(x => x.id === d.q); if (!q) return; ask("Abandon this quest?", `"${q.title}" moves to Done as archived and stops draining XP. XP already lost stays lost. You can restore it later.`, "Abandon quest", () => { const at = nowIso(); mutateQuest(d.q, x => { if (x.status !== "archived") { x.status = "archived"; x.archivedAt = at; } }); }); },
+  "restore-quest": d => mutateQuest(d.q, x => { x.status = "active"; delete x.archivedAt; }),
+  "delete-quest": d => { const q = S.quests.find(x => x.id === d.q); if (!q) return; ask("Delete this quest for good?", `"${q.title}" and the XP it earned will be removed. This can't be undone.`, "Delete quest", () => { deleteDoc("quests/" + d.q); delete S.edit[d.q]; }, true); },
+  "del-obj": d => mutateQuest(d.q, q => { for (const ch of q.chapters) ch.objectives = ch.objectives.filter(o => o.id !== d.o); }),
+  "deed-open": () => { S.deedOpen = true; render(); requestAnimationFrame(() => requestAnimationFrame(() => $("deed-note")?.focus())); },
+  "deed-cancel": () => { S.deedOpen = false; render(); },
+  "deed-next": () => { S.deedShift++; S.deedOpen = false; render(); },
+  "inbox-del": d => deleteDoc("inbox/" + d.id),
+  breakdown: d => breakDown(d.id),
+  "preview-accept": () => acceptPreview(),
+  "preview-retry": () => { const p = S.preview; S.preview = null; render(); if (p) breakDown(p.inboxId, true); },
+  "preview-discard": () => { S.preview = null; render(); },
+  "reach-open": d => { S.reachFor = d.id; if (S.tab !== "allies") setTab("allies"); else render(); requestAnimationFrame(() => requestAnimationFrame(() => $("rh-" + d.id)?.focus())); },
+  "reach-cancel": () => { S.reachFor = null; render(); },
+  "ally-del": d => { const a = S.allies.find(x => x.id === d.id); if (!a) return; ask(`Remove ${a.name}?`, "They'll leave your allies list. Journal entries about them stay.", "Remove", () => deleteDoc("allies/" + d.id), true); },
+  "entry-del": d => { const c = S.chronicle.find(x => x.id === d.id); if (!c) return; ask("Delete this entry?", `Its ${deedXp(c)} XP will be removed too.`, "Delete entry", () => deleteDoc("chronicle/" + d.id), true); },
+  buy: d => { const w = S.rewards.find(x => x.id === d.id); if (!w) return; const cost = clampInt(w.cost, 1, 100000, 50); ask(`Claim ${w.title}?`, `This spends ${fmt(cost)} gold. Enjoy it, you earned it.`, `Claim for ${fmt(cost)} gold`, () => addDoc("purchases", {rewardId:w.id, title:w.title, cost, at:nowIso()}).then(() => banner("Reward claimed!", w.title)).catch(() => {})); },
+  "reward-del": d => { const w = S.rewards.find(x => x.id === d.id); if (!w) return; ask(`Remove ${w.title} from the shop?`, "Past claims stay in your history.", "Remove", () => deleteDoc("rewards/" + d.id), true); },
+  "modal-ok": () => { const c = S.confirm; S.confirm = null; render(); c && c.onOk && c.onOk(); },
+  "modal-cancel": () => { S.confirm = null; render(); },
+  "more-journal": () => { S.journalLimit += 40; render(); },
+};
+const FORM = {
+  inbox: () => { const text = val("inbox-text"); if (!text) return; const realm = val("inbox-realm"); addDoc("inbox", {text: text.slice(0, 500), realm: realm || null, at: nowIso()}).then(() => toast("Added to your inbox.")).catch(() => {}); clearDrafts("inbox-text"); render(); },
+  answer: f => { const id = f.dataset.id, a = val("ans-" + id); if (!a) return; updateDoc("inbox/" + id, {answer: a.slice(0, 500)}); clearDrafts("ans-" + id); },
+  deed: () => { const sq = sideQuest(), note = val("deed-note"); logDeed({kind:sq.kind, text: note || sq.text, allyId: sq.allyId, xp: sideQuestXp(sq)}); clearDrafts("deed-note"); S.deedOpen = false; S.deedShift++; render(); },
+  "new-quest": () => {
+    const title = val("nq-title"); if (!title || !needDb()) return;
+    const ref = db.collection("quests").doc();
+    queueWrite("quests/" + ref.id, () => ref.set({title: title.slice(0, 140), realm: val("nq-realm") || "other", due: isYmd(val("nq-due")) ? val("nq-due") : null, priority:1, status:"active", createdAt: nowIso(), notes:"", chapters:[{title:"Objectives", objectives:[]}]}));
+    S.open[ref.id] = true; S.edit[ref.id] = true; S.newQuest = false; clearDrafts("nq-title", "nq-due"); render();
+  },
+  "add-obj": f => {
+    const qid = f.dataset.q, ci = Number(f.dataset.c), title = val(`ao-${qid}-${ci}`); if (!title) return;
+    const xp = clampInt(val(`ax-${qid}-${ci}`), 5, 60, 15), id = rid(), est = {10:15, 15:30, 25:60, 40:120}[xp] || null;
+    mutateQuest(qid, q => {
+      if (!q.chapters.length) q.chapters.push({title:"Objectives", objectives:[]});
+      const ch = q.chapters[ci] || q.chapters[0];
+      if (!ch.objectives.some(o => o.id === id)) ch.objectives.push({id, title: title.slice(0, 160), xp, est, done:false, due:null, steps:[]});
+      if (q.status === "done") { q.status = "active"; delete q.doneAt; }
+    });
+    clearDrafts(`ao-${qid}-${ci}`); render();
+  },
+  ally: () => {
+    const name = val("al-name"); if (!name) return;
+    const bday = val("al-bday");
+    addDoc("allies", {name: name.slice(0, 80), relation: val("al-rel").slice(0, 80), every: clampInt(val("al-every"), 1, 365, 14), last: null, birthday: isYmd(bday) ? bday : null, createdAt: nowIso()})
+      .then(() => toast(`${name} joined your allies.`)).catch(() => {});
+    clearDrafts("al-name", "al-rel", "al-bday"); render();
+  },
+  reach: f => {
+    const a = S.allies.find(x => x.id === f.dataset.id); if (!a) return;
+    const how = HOW[val("rh-" + a.id)] || HOW.text, note = val("rn-" + a.id);
+    const kind = how[1], xp = DEEDS[kind].xp + (allyState(a).status === "fading" ? FADING_BONUS : 0);
+    logDeed({kind, text: note || `${how[0]} ${a.name}`, allyId: a.id, xp});
+    clearDrafts("rn-" + a.id); S.reachFor = null; render();
+  },
+  journal: () => {
+    const text = val("jn-text"); if (!text) { $("jn-text")?.focus(); return; }
+    logDeed({kind: DEEDS[val("jn-kind")] ? val("jn-kind") : "gratitude", text, allyId: val("jn-ally") || null});
+    clearDrafts("jn-text"); render();
+  },
+  reward: () => {
+    const title = val("rw-title"), cost = clampInt(val("rw-cost"), 1, 100000, 0); if (!title || !cost) return;
+    addDoc("rewards", {title: title.slice(0, 100), cost, createdAt: nowIso()}).then(() => toast("Added to the shop.")).catch(() => {});
+    clearDrafts("rw-title", "rw-cost"); render();
+  },
+};
+
+document.addEventListener("click", ev => {
+  const b = ev.target.closest("[data-act]");
+  if (!b) return;
+  if (b.classList.contains("backdrop") && ev.target.closest("[data-stop]")) return;
+  const fn = ACT[b.dataset.act]; if (fn) { ev.preventDefault(); fn(b.dataset); }
+});
+document.addEventListener("submit", ev => {
+  ev.preventDefault();
+  const f = ev.target, fn = FORM[f.dataset.form]; if (fn) fn(f);
+});
+const keepDraft = ev => { const t = ev.target; if (t && t.id && t.hasAttribute("data-draft")) S.drafts[t.id] = t.value; };
+document.addEventListener("input", keepDraft);
+document.addEventListener("change", ev => {
+  keepDraft(ev);
+  const t = ev.target, d = t.dataset;
+  if (t.matches("input.chk[data-o]")) { if (d.s != null) setStep(d.q, d.o, Number(d.s), t.checked); else setObjective(d.q, d.o, t.checked); return; }
+  if (!d.field) return;
+  const v = String(t.value || "").trim();
+  if (d.field === "title" && v) mutateQuest(d.q, q => { q.title = v.slice(0, 140); });
+  if (d.field === "realm") mutateQuest(d.q, q => { q.realm = REALMS[v] ? v : "other"; });
+  if (d.field === "priority") mutateQuest(d.q, q => { q.priority = clampInt(v, 1, 3, 1); });
+  if (d.field === "due") mutateQuest(d.q, q => setDue(q, isYmd(v) ? v : null, QUEST_DRAIN));
+  if (d.field === "odue") mutateQuest(d.q, q => { const o = findObj(q, d.o); if (o) setDue(o, isYmd(v) ? v : null, OBJ_DRAIN); });
+});
+document.addEventListener("keydown", ev => { if (ev.key === "Escape" && (S.confirm || S.preview)) { S.confirm = null; S.preview = null; render(); } });
+
+/* ---------- Boot ---------- */
+function start(d, s){
+  db = d; sample = s || null;
+  if (!db) { S.offline = true; render(); return; }
+  for (const name of COLLS) {
+    db.collection(name).onSnapshot(snap => {
+      const docs = snap.docs.filter(x => x.exists).map(x => ({id: x.id, ...x.data()}));
+      if (name === "meta") S.meta = Object.fromEntries(docs.map(x => [x.id, x]));
+      else if (name === "quests") S.quests = docs.map(normQuest);
+      else S[name] = docs;
+      S.loaded.add(name); render();
+    }, err => { console.error(name, err); S.failed = true; render(); });
+  }
+}
+(async function boot(){
+  try { const saved = localStorage.getItem("questlog-tab"); if (saved) S.tab = saved; } catch (_) {}
+  const h = location.hash.replace("#", ""); if (["today","quests","allies","journal","shop","hero"].includes(h)) S.tab = h;
+  draw();
+  setInterval(render, 10 * 60 * 1000);
+  const c = window.claude;
+  if (!c || typeof c.use !== "function") { S.offline = true; render(); return; }
+  const [d, s] = await Promise.all([c.use("db").catch(() => null), c.use("sample").catch(() => null)]);
+  start(d, s);
+})();
+</script>
