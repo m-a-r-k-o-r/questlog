@@ -7,7 +7,7 @@ on:
     inputs:
       mode:
         description: "auto, morning, evening or test"
-        default: "test"
+        default: "auto"
 
 permissions:
   contents: read

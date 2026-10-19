@@ -27,4 +27,4 @@ Quest bonus 25+25×priority XP. Gold = half of XP. Overdue objectives drain 5 XP
 
 ## Pings and check-ins
 
-`.github/workflows/pings.yml` runs every 10 min: morning ping 7:40-11:00 (weekends only if something is due today/tomorrow or overdue), evening 8:30-11:45 PM, once per day each, America/New_York. Claude's scheduled check-ins on the Mac write `meta/today`, plan inbox items, and run the Sunday review; they propose calendar blocks and create events only after the user approves.
+`.github/workflows/pings.yml` is started every 10 min by Supabase pg_cron (`supabase/timer.sql`, job `questlog-pings`, GitHub token in Supabase Vault as `questlog_github_token`); its own `schedule` trigger is only a backup. It sends: morning ping 7:40-11:00 (weekends only if something is due today/tomorrow or overdue), evening 8:30-11:45 PM, once per day each, America/New_York. Claude's scheduled check-ins on the Mac write `meta/today`, plan inbox items, and run the Sunday review; they propose calendar blocks and create events only after the user approves.
