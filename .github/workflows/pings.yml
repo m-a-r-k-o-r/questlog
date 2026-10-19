@@ -1,0 +1,46 @@
+name: Questlog pings
+
+on:
+  schedule:
+    - cron: "4-59/10 * * * *"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "auto, morning, evening or test"
+        default: "test"
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: questlog-pings
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Send pings that are due
+        run: node scripts/pings.mjs --mode "${{ github.event.inputs.mode || 'auto' }}"
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          QUESTLOG_USER_ID: ${{ secrets.QUESTLOG_USER_ID }}
+          QUESTLOG_TZ: ${{ secrets.QUESTLOG_TZ }}
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
+      # GitHub pauses scheduled workflows after 60 days without repo activity; re-enabling resets that clock.
+      - name: Keep the schedule alive
+        if: github.event_name == 'schedule'
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/pings.yml/enable" > /dev/null || true
+        env:
+          GH_TOKEN: ${{ github.token }}

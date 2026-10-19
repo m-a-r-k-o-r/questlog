@@ -1,0 +1,15 @@
+{
+  "name": "questlog",
+  "private": true,
+  "type": "module",
+  "description": "Questlog: an RPG-style life tracker with quests, good deeds, allies and a reward shop.",
+  "scripts": {
+    "ql": "node scripts/questlog.mjs",
+    "pings": "node scripts/pings.mjs",
+    "icons": "python3 scripts/make_icons.py"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.117.1",
+    "web-push": "3.6.7"
+  }
+}
