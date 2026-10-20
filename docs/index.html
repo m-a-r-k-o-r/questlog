@@ -282,6 +282,8 @@ input[type=checkbox].chk.sm:checked::after{width:7px;height:4px;border-width:2px
 .ally-top{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
 .ally-name{font-family:var(--font-display);font-size:19px;overflow-wrap:anywhere}
 .ally-rel{color:var(--ink-dim);font-size:13.5px}
+.aim{display:inline-flex;align-items:center;gap:5px}
+.aim select{font-size:13px;padding:2px 6px;border-width:1px}
 .hearts{display:flex;gap:2px}
 
 /* Journal */
@@ -997,7 +999,7 @@ function viewAllies(){
         ${statusChip(s)}
       </div>
       <div class="hearts" role="img" aria-label="Bond ${Math.round(s.bond * 5)} of 5">${Array.from({length:5}, (_, i) => i < Math.round(s.bond * 5) ? ICON.heart : ICON.heart0).join("")}</div>
-      <div class="meta"><span>${s.since == null ? "No contact logged yet" : s.since === 0 ? "Talked today" : `Last contact ${plural(s.since, "day")} ago`}</span><span>· aim ${cadence(s.every)}</span>
+      <div class="meta"><span>${s.since == null ? "No contact logged yet" : s.since === 0 ? "Talked today" : `Last contact ${plural(s.since, "day")} ago`}</span><label class="aim">· aim <select id="ae-${esc(a.id)}" data-ally="${esc(a.id)}" aria-label="How often to check in with ${esc(a.name)}">${[...new Set([3,7,14,30,60,90,s.every])].sort((x, y) => x - y).map(n => `<option value="${n}" ${n === s.every ? "selected" : ""}>${cadence(n)}</option>`).join("")}</select></label>
         ${b && b.inDays <= 30 ? `<span class="chip heart">${ICON.cake} birthday ${b.inDays === 0 ? "today" : `in ${plural(b.inDays, "day")}`}</span>` : ""}</div>
       ${S.reachFor === a.id ? `<form class="form-col" data-form="reach" data-id="${esc(a.id)}">
           <div class="form">
@@ -1275,6 +1277,7 @@ document.addEventListener("change", ev => {
   keepDraft(ev);
   const t = ev.target, d = t.dataset;
   if (t.matches("input.chk[data-o]")) { if (d.s != null) setStep(d.q, d.o, Number(d.s), t.checked); else setObjective(d.q, d.o, t.checked); return; }
+  if (t.matches("select[data-ally]")) { updateDoc("allies/" + d.ally, {every: clampInt(t.value, 1, 365, 14)}); return; }
   if (!d.field) return;
   const v = String(t.value || "").trim();
   if (d.field === "title" && v) mutateQuest(d.q, q => { q.title = v.slice(0, 140); });
