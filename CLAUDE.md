@@ -9,7 +9,7 @@ Use `node scripts/questlog.mjs` (settings in `~/.questlog/env`): `dump [collecti
 Collections (local dates `YYYY-MM-DD`, timestamps ISO):
 - `quests`: `{title, realm, due, priority 1-3, status active|done|archived, createdAt, doneAt, archivedAt, notes, drainBanked?, chapters:[{title, objectives:[{id, title, est (min), xp, due, done, doneAt, scheduled (ISO), steps:[{t, done}]}]}]}`
 - `chronicle`: good deeds and journal `{kind reach|gratitude|kindness|help|gift|savor, text, at, date, xp, allyId?, allyName?}`
-- `allies`: `{name, relation, every (days), last, birthday}`
+- `allies`: `{name, relation, every (days), last, birthday, createdAt}`. With no `last`, the reach-out clock starts at `createdAt`. Birthdays with an unknown year use 2000.
 - `inbox`: `{text, realm, at, question?, answer?}`
 - `rewards` `{title, cost, example?}`, `purchases` `{rewardId, title, cost, at}`
 - `meta/today` `{date, note, focus[], deed{kind,text,allyId?}, reflection}`, `meta/week` `{weekOf, summary, highlights[]}`, `meta/pings` (sent markers, owned by the ping timer)

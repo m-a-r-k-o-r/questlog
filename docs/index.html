@@ -633,8 +633,10 @@ function alerts(){
 function allyState(a){
   const every = clampInt(a.every, 1, 365, 14);
   const since = isYmd(a.last) ? Math.max(0, diffDays(a.last, today())) : null;
-  const ratio = since == null ? 1 : since / every;
-  const status = since == null ? "new" : ratio >= 1 ? "fading" : ratio >= .75 ? "soon" : "close";
+  // No contact logged yet: the clock starts on the day they were added.
+  const added = since == null && isYmd(String(a.createdAt || "").slice(0, 10)) ? Math.max(0, diffDays(String(a.createdAt).slice(0, 10), today())) : null;
+  const ratio = since != null ? since / every : added != null ? added / every : 1;
+  const status = since == null ? (added != null && added >= every ? "fading" : "new") : ratio >= 1 ? "fading" : ratio >= .75 ? "soon" : "close";
   const bond = since == null ? .4 : Math.max(0, Math.min(1, 1 - since / (every * 2)));
   return {every, since, status, bond, ratio};
 }
@@ -654,7 +656,7 @@ function sideQuest(){
   const m = S.meta.today;
   if (m && m.date === t && m.deed && m.deed.text) opts.push({kind: DEEDS[m.deed.kind] ? m.deed.kind : "kindness", text: m.deed.text, allyId: m.deed.allyId || null, from:"Claude"});
   for (const {a, s} of fadingAllies().filter(x => x.s.status === "fading").slice(0, 3))
-    opts.push({kind:"reach", text:`Reach out to ${a.name}. It's been ${plural(s.since, "day")}.`, allyId:a.id});
+    opts.push({kind:"reach", text: s.since == null ? `Reach out to ${a.name}.` : `Reach out to ${a.name}. It's been ${plural(s.since, "day")}.`, allyId:a.id});
   const seed = hash(t);
   for (let i = 0; i < SIDE_QUESTS.length; i++) opts.push(SIDE_QUESTS[(seed + i) % SIDE_QUESTS.length]);
   return opts[S.deedShift % opts.length];

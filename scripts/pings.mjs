@@ -85,7 +85,11 @@ function sideQuest(D, t) {
   const today = D.meta?.today;
   if (today?.date === t && today.deed?.text) return today.deed.text;
   const fading = Object.values(D.allies || {})
-    .map((a) => ({ a, since: isYmd(a.last) ? diffDays(a.last, t) : null, every: Number(a.every) || 14 }))
+    .map((a) => {
+      // No contact logged yet: the clock starts on the day they were added.
+      const start = isYmd(a.last) ? a.last : String(a.createdAt || "").slice(0, 10);
+      return { a, since: isYmd(start) ? diffDays(start, t) : null, every: Number(a.every) || 14 };
+    })
     .filter((x) => x.since == null || x.since >= x.every)
     .sort((x, y) => (y.since ?? 999) / y.every - (x.since ?? 999) / x.every);
   if (fading.length) return `Reach out to ${fading[0].a.name}.`;
